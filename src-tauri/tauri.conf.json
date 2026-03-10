@@ -1,7 +1,7 @@
 {
-  "productName": "VectorFrame",
+  "productName": "Pompedin",
   "version": "1.0.0",
-  "identifier": "com.vectorframe.app",
+  "identifier": "com.pompedin.app",
   "build": {
     "frontendDist": "../src"
   },
@@ -9,7 +9,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "VectorFrame",
+        "title": "Pompedin",
         "width": 1400,
         "height": 900,
         "resizable": true,

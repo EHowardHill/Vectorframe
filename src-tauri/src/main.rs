@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    vectorframe_lib::run();
+    pompedin_lib::run();
 }

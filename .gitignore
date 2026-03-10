@@ -1,4 +1,5 @@
 src-tauri/target
+src-tauri/Cargo.lock
 source.txt
 
 # Logs

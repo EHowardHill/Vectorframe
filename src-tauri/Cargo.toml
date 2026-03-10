@@ -1,14 +1,14 @@
 [package]
-name = "vectorframe"
+name = "pompedin"
 version = "1.0.0"
 edition = "2021"
 
 [lib]
-name = "vectorframe_lib"
+name = "pompedin_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [[bin]]
-name = "vectorframe"
+name = "pompedin"
 path = "src/main.rs"
 
 [build-dependencies]

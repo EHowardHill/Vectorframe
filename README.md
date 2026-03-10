@@ -1,4 +1,4 @@
-# Vectorframe
+# pompedin
 
 Frame-by-frame vector animation tool, built with Tauri 2 + Rust + Paper.js.
 
@@ -39,8 +39,8 @@ Frame-by-frame vector animation tool, built with Tauri 2 + Rust + Paper.js.
 On first run, the app creates a data directory. Check the dev console for the path:
 
 ```
-VectorFrame data directory: /Users/you/Library/Application Support/com.vectorframe.app/
-Place brush PNGs in: /Users/you/Library/Application Support/com.vectorframe.app/brush/
+pompedin data directory: /Users/you/Library/Application Support/com.pompedin.app/
+Place brush PNGs in: /Users/you/Library/Application Support/com.pompedin.app/brush/
 ```
 
 Copy your brush PNGs from the original `brush/` folder into that directory.
@@ -48,7 +48,7 @@ Copy your brush PNGs from the original `brush/` folder into that directory.
 ## Project Structure
 
 ```
-vectorframe-tauri/
+pompedin/
 ├── package.json
 ├── setup.sh                 # Copies unchanged JS from original project
 ├── src/                     # Frontend (served by Tauri webview)
