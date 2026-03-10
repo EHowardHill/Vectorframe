@@ -1,0 +1,1 @@
+npm run tauri icon app-icon.png

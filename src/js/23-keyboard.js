@@ -1,0 +1,357 @@
+(function () {
+    "use strict";
+
+    var S = VF.S, P;
+    function getP() { if (!P) P = VF.P; return P; }
+
+    var spaceHeld = false;
+    var preSpaceTool = null;
+
+    /* ── Item clipboard (separate from frame clipboard S.clip) ── */
+    VF.itemClip = null;
+
+    /* ═══════════════════════════════════════════════════
+       Collect unique top-level layer children that own
+       the currently selected segments.
+       ═══════════════════════════════════════════════════ */
+    VF.getSelectedItems = function () {
+        var pl = VF.pLayers[S.activeId];
+        if (!pl) return [];
+
+        var items = [];
+        var seen = new Set();
+
+        VF.selSegments.forEach(function (seg) {
+            if (!seg.path) return;
+
+            /* Walk up from the segment's path to the direct child of pl */
+            var item = seg.path;
+            while (item.parent && item.parent !== pl) {
+                item = item.parent;
+            }
+            if (item.parent === pl && !item._isH && !seen.has(item.id)) {
+                seen.add(item.id);
+                items.push(item);
+            }
+        });
+
+        return items;
+    };
+
+    /* ═══════════════════════════════════════════════════
+       Serialize a single top-level item the same way
+       serPL handles children — texture groups get their
+       custom JSON, everything else uses exportJSON.
+       ═══════════════════════════════════════════════════ */
+    VF.serItem = function (c) {
+        var P = getP();
+        if (c._isH) return null;
+
+        /* ── Texture stroke group ── */
+        if (c.data && c.data.isTextureStroke) {
+            var customData = {
+                __texStroke: true,
+                tex: c.data.tex,
+                col: c.data.strokeCol,
+                size: c.data.brushSize,
+                seed: c.data.seed || 0
+            };
+
+            var mat = c.matrix;
+            var decomp = mat.decompose();
+
+            if (c.data.pressurePoints) {
+                customData.pressurePoints = c.data.pressurePoints.map(function (p) {
+                    var mappedPt = mat.transform(new P.Point(p.x, p.y));
+                    return {
+                        x: mappedPt.x,
+                        y: mappedPt.y,
+                        angle: p.angle,
+                        width: p.width * decomp.scaling.x
+                    };
+                });
+            } else {
+                var guide = c.children ? Array.from(c.children).find(
+                    function (ch) { return ch.data && ch.data.isGuide; }
+                ) : null;
+                if (guide) {
+                    var gClone = guide.clone({ insert: false });
+                    gClone.transform(mat);
+                    gClone.visible = true;
+                    customData.pathJSON = gClone.exportJSON();
+                }
+            }
+            return JSON.stringify(customData);
+        }
+
+        /* ── Standard vector item ── */
+        if (c.className === 'Path' || c.className === 'CompoundPath' ||
+            c.className === 'Shape' || c.className === 'Group') {
+            var clone = c.clone({ insert: false });
+            return clone.exportJSON();
+        }
+
+        return null;
+    };
+
+    /* ═══════════════════════════════════════════════════
+       Deserialize a single item JSON string and add it
+       to the given paper layer.  Same logic as desPL
+       but for one item at a time.
+       ═══════════════════════════════════════════════════ */
+    VF.desItem = function (pl, jsonStr) {
+        var P = getP();
+        try {
+            var parsed = null;
+            try { parsed = JSON.parse(jsonStr); } catch (_) { parsed = null; }
+
+            if (parsed && parsed.__texStroke) {
+                if (parsed.pressurePoints && parsed.pressurePoints.length > 0) {
+                    var pts = parsed.pressurePoints.map(function (p) {
+                        return {
+                            point: new P.Point(p.x, p.y),
+                            angle: p.angle,
+                            width: p.width
+                        };
+                    });
+                    var grp = VF.renderPressureTextureRibbon(
+                        pts, parsed.tex, parsed.col, parsed.size, parsed.seed
+                    );
+                    if (grp) pl.addChild(grp);
+                    return grp;
+                } else if (parsed.pathJSON) {
+                    var tempGroup = new P.Group({ insert: false });
+                    var guidePath = tempGroup.importJSON(parsed.pathJSON);
+                    if (guidePath) {
+                        guidePath.remove();
+                        var grp2 = VF.renderTextureRibbon(
+                            guidePath, parsed.tex, parsed.col, parsed.size,
+                            { seed: parsed.seed }
+                        );
+                        if (grp2) pl.addChild(grp2);
+                        tempGroup.remove();
+                        return grp2;
+                    }
+                    tempGroup.remove();
+                }
+                return null;
+            }
+
+            return pl.importJSON(jsonStr);
+        } catch (e) {
+            return null;
+        }
+    };
+
+    /* ═══════════════════════════════════════════════════
+       COPY selected items
+       ═══════════════════════════════════════════════════ */
+    function copySelectedItems() {
+        var items = VF.getSelectedItems();
+        if (items.length === 0) return false;
+
+        var serialized = [];
+        items.forEach(function (item) {
+            var s = VF.serItem(item);
+            if (s) serialized.push(s);
+        });
+
+        if (serialized.length > 0) {
+            VF.itemClip = serialized;
+            VF.toast(serialized.length + ' item' + (serialized.length > 1 ? 's' : '') + ' copied');
+            return true;
+        }
+        return false;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       CUT selected items (copy then remove)
+       ═══════════════════════════════════════════════════ */
+    function cutSelectedItems() {
+        var items = VF.getSelectedItems();
+        if (items.length === 0) return false;
+
+        VF.saveHistory();
+
+        var serialized = [];
+        items.forEach(function (item) {
+            var s = VF.serItem(item);
+            if (s) serialized.push(s);
+        });
+
+        if (serialized.length > 0) {
+            VF.itemClip = serialized;
+
+            /* Remove the items from the layer */
+            items.forEach(function (item) { item.remove(); });
+
+            VF.selSegments = [];
+            VF.clearHandles();
+            VF.saveFrame();
+            VF.uiTimeline();
+            VF.render();
+            VF.toast(serialized.length + ' item' + (serialized.length > 1 ? 's' : '') + ' cut');
+            return true;
+        }
+        return false;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       PASTE items from item clipboard
+       ═══════════════════════════════════════════════════ */
+    function pasteItems() {
+        if (!VF.itemClip || VF.itemClip.length === 0) return false;
+
+        var pl = VF.pLayers[S.activeId];
+        if (!pl) return false;
+
+        VF.saveHistory();
+
+        /* Clear current selection */
+        VF.selSegments = [];
+        VF.clearHandles();
+
+        /* Offset pasted items slightly so the user can see they pasted */
+        var PASTE_OFFSET = 10;
+        var P = getP();
+        var pastedItems = [];
+
+        VF.itemClip.forEach(function (jsonStr) {
+            var item = VF.desItem(pl, jsonStr);
+            if (item) {
+                item.position = item.position.add(new P.Point(PASTE_OFFSET, PASTE_OFFSET));
+                pastedItems.push(item);
+            }
+        });
+
+        /* Select the pasted items */
+        pastedItems.forEach(function (item) {
+            if (item.segments) {
+                item.segments.forEach(function (seg) {
+                    VF.selSegments.push(seg);
+                });
+            } else if (item.children) {
+                /* For groups (texture strokes), select the guide path segments */
+                item.children.forEach(function (child) {
+                    if (child.segments) {
+                        child.segments.forEach(function (seg) {
+                            VF.selSegments.push(seg);
+                        });
+                    }
+                });
+            }
+        });
+
+        VF.showHandles();
+        VF.saveFrame();
+        VF.uiTimeline();
+        VF.toast(pastedItems.length + ' item' + (pastedItems.length > 1 ? 's' : '') + ' pasted');
+        return true;
+    }
+
+    /* ═══════════════════════════════════════════════════
+       KEYDOWN HANDLER
+       ═══════════════════════════════════════════════════ */
+    $(document).on('keydown', function (e) {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+        if (e.ctrlKey || e.metaKey) {
+            if (e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) VF.execRedo(); else VF.execUndo(); return; }
+            if (e.key.toLowerCase() === 'y') { e.preventDefault(); VF.execRedo(); return; }
+
+            /* ── CUT (Ctrl+X) ── */
+            if (e.key.toLowerCase() === 'x') {
+                e.preventDefault();
+                if (VF.selSegments.length > 0) {
+                    cutSelectedItems();
+                }
+                return;
+            }
+
+            /* ── COPY: items if selected, otherwise frame ── */
+            if (e.key.toLowerCase() === 'c') {
+                e.preventDefault();
+                if (VF.selSegments.length > 0) {
+                    copySelectedItems();
+                } else {
+                    var l = VF.AL();
+                    if (l) {
+                        var res = VF.getResolvedFrame(l, S.tl.frame);
+                        S.clip = res && res.data ? JSON.parse(JSON.stringify(res.data)) : null;
+                        VF.toast(S.clip ? 'Frame copied' : 'Blank frame copied');
+                    }
+                }
+                return;
+            }
+
+            /* ── PASTE: items if item clipboard has data AND we're in a
+               select/lasso/transform tool, otherwise frame paste ── */
+            if (e.key.toLowerCase() === 'v') {
+                e.preventDefault();
+                var inSelectTool = ['select', 'lasso', 'translate', 'rotate', 'scale'].indexOf(S.tool) !== -1;
+
+                if (VF.itemClip && VF.itemClip.length > 0 && inSelectTool) {
+                    pasteItems();
+                } else {
+                    var l2 = VF.AL();
+                    if (l2) {
+                        VF.saveHistory();
+                        l2.frames[S.tl.frame] = S.clip ? JSON.parse(JSON.stringify(S.clip)) : [];
+                        if (!l2.cache) l2.cache = {};
+                        delete l2.cache[S.tl.frame];
+                        VF.render();
+                        VF.uiTimeline();
+                        VF.toast('Frame pasted');
+                    }
+                }
+                return;
+            }
+        }
+
+        var k = e.key.toLowerCase();
+        if (k === 'b') VF.setTool('brush');
+        else if (k === 'v') VF.setTool('select');
+        else if (k === 'l') VF.setTool('lasso');
+        else if (k === 'e') VF.setTool('eraser');
+        else if (k === 'g') VF.setTool('fill');
+        else if (k === 'h' && !e.ctrlKey) VF.setTool('hide-edge');
+        else if (k === 't') VF.setTool('translate');
+        else if (k === 'r' && !e.ctrlKey) VF.setTool('rotate');
+        else if (k === 's' && !e.ctrlKey && !e.metaKey) VF.setTool('scale');
+        else if (k === 'z' && !e.ctrlKey && !e.metaKey) VF.setTool('zoom');
+        else if (k === ' ') { e.preventDefault(); if (!spaceHeld) { spaceHeld = true; preSpaceTool = S.tool; VF.setTool('pan'); } }
+        else if (k === 'arrowright') { e.preventDefault(); VF.goFrame(S.tl.frame + 1); }
+        else if (k === 'arrowleft') { e.preventDefault(); VF.goFrame(S.tl.frame - 1); }
+        else if (k === 'enter') { e.preventDefault(); VF.togglePlay(); }
+        else if (k === 'escape') {
+            e.preventDefault();
+            if (VF.selectMode === 'vertex') {
+                VF.exitVertexMode();
+            } else if (VF.selSegments.length > 0) {
+                VF.selSegments = [];
+                VF.clearHandles();
+            }
+        }
+        else if (k === 'delete' || k === 'backspace') {
+            if (VF.selSegments.length > 0) {
+                VF.saveHistory();
+                var items = VF.getSelectedItems();
+                items.forEach(function (item) { item.remove(); });
+                VF.selSegments = [];
+                VF.clearHandles();
+                VF.saveFrame();
+                VF.uiTimeline();
+                VF.render();
+            }
+        }
+    });
+
+    $(document).on('keyup', function (e) {
+        if (e.key === ' ') {
+            spaceHeld = false;
+            VF.setTool(preSpaceTool || 'brush');
+            preSpaceTool = null;
+        }
+    });
+
+})();

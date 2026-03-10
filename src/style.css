@@ -1,0 +1,989 @@
+/* ═══════════════════════════════════════════════════
+   THEME TOKENS
+   ═══════════════════════════════════════════════════ */
+:root {
+    --bg-darkest: #f3f3f6;
+    /* App & Workspace background */
+    --bg-dark: #e6e6ec;
+    /* Inputs, scrollbars */
+    --bg-panel: #ffffff;
+    /* Sidebars, Top bar, Modals */
+    --bg-hover: #f0f0f5;
+    --bg-active: #e2e2e9;
+    --border: #d4d4dc;
+    --grid-line: rgba(40, 40, 50, 0.1);
+
+    --text-primary: #1e1e24;
+    --text-secondary: #5a5a65;
+    --text-dim: #8b8b98;
+
+    --accent: #4a6fff;
+    --accent-hover: #385be5;
+    --accent-dim: #edf1ff;
+    --warning: #ff5252;
+    --success: #34c759;
+    --orange: #ff9500;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg-darkest: #121214;
+        /* Deep charcoal for the workspace */
+        --bg-dark: #1e1e22;
+        --bg-panel: #1a1a1d;
+        /* Slightly lighter for panels */
+        --bg-hover: #2d2d33;
+        --bg-active: #3a3a42;
+        --border: #3a3a42;
+        --grid-line: rgba(255, 255, 255, 0.05);
+
+        --text-primary: #e2e2e9;
+        --text-secondary: #a1a1b0;
+        --text-dim: #6b6b76;
+
+        --accent-dim: rgba(74, 111, 255, 0.15);
+    }
+}
+
+/* ═══════════════════════════════════════════════════
+   RESET & BASE
+   ═══════════════════════════════════════════════════ */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html,
+body {
+    height: 100%;
+    overflow: hidden;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg-darkest);
+    color: var(--text-primary);
+    font-size: 12px;
+    line-height: 1.4;
+    -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-dark);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--bg-active);
+    border-radius: 3px;
+}
+
+/* ═══════════════════════════════════════════════════
+   APP GRID SHELL
+   ═══════════════════════════════════════════════════ */
+
+#app {
+    display: grid;
+    /* Changed first row from hardcoded 38px to min-content to adapt to the ribbon */
+    grid-template-rows: min-content 1fr 130px;
+    grid-template-columns: 130px 1fr 210px;
+    height: 100vh;
+    position: relative;
+    /* anchor for absolutely-positioned resize handles */
+}
+
+#top-bar {
+    grid-row: 1;
+    grid-column: 1 / -1;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    z-index: 20;
+}
+
+/* ═══════════════════════════════════════════════════
+   RIBBON STYLES
+   ═══════════════════════════════════════════════════ */
+.ribbon-tabs {
+    display: flex;
+    align-items: center;
+    background: var(--bg-darkest);
+    padding: 0 10px;
+    border-bottom: 1px solid var(--border);
+}
+
+.ribbon-tab {
+    padding: 6px 14px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color 0.1s, border-color 0.1s;
+    margin-right: 2px;
+}
+
+.ribbon-tab:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+}
+
+.ribbon-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    background: var(--bg-panel);
+}
+
+.ribbon-content {
+    display: flex;
+    height: 84px;
+    /* Increased to accommodate stacked buttons */
+    background: var(--bg-panel);
+    padding: 8px 10px;
+}
+
+.ribbon-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 0 10px 14px 10px;
+    /* Added bottom padding to make room for the label */
+    height: 100%;
+    position: relative;
+}
+
+.ribbon-group-label {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    font-size: 9px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.ribbon-panel {
+    display: none;
+    gap: 10px;
+    width: 100%;
+    align-items: flex-start;
+}
+
+.ribbon-panel.active {
+    display: flex;
+}
+
+.ribbon-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.div-v-ribbon {
+    width: 1px;
+    height: 40px;
+    background: var(--border);
+    margin: auto 0;
+    flex-shrink: 0;
+}
+
+/* Ribbon Tooltips */
+#top-bar .tb[data-tip]:hover::after {
+    content: attr(data-tip);
+    position: absolute;
+    top: 115%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    padding: 4px 8px;
+    border-radius: 5px;
+    font-size: 10px;
+    white-space: nowrap;
+    z-index: 60;
+    border: 1px solid var(--border);
+    pointer-events: none;
+}
+
+#left-tools {
+    grid-row: 2;
+    grid-column: 1;
+    background: var(--bg-panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    /* Stretches buttons to fill width */
+    padding: 8px 6px;
+    /* Adjusted horizontal padding */
+    gap: 2px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    /* Explicitly prevents horizontal scrolling */
+}
+
+/* Update the vertical dividers inside the left toolbar to span the full width */
+#left-tools .div-v {
+    width: 100%;
+    margin: 6px 0;
+}
+
+/* Adjust tooltip position so it doesn't overlap the wider buttons */
+#left-tools .tb[data-tip]:hover::after {
+    left: 105%;
+}
+
+#canvas-area {
+    grid-row: 2;
+    grid-column: 2;
+    background: var(--bg-darkest);
+    position: relative;
+    overflow: hidden;
+}
+
+#right-panel {
+    grid-row: 2;
+    grid-column: 3;
+    background: var(--bg-panel);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#timeline-bar {
+    grid-row: 3;
+    grid-column: 1 / -1;
+    background: var(--bg-panel);
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+}
+
+/* ═══════════════════════════════════════════════════
+   COMMON UI COMPONENTS
+   ═══════════════════════════════════════════════════ */
+/* Tool button */
+.tb {
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 13px;
+    transition: background .1s, color .1s;
+    position: relative;
+}
+
+.tb:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.tb.active {
+    background: var(--accent-dim);
+    color: var(--accent);
+}
+
+.tb svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.tb-wide {
+    width: auto;
+    padding: 0 10px;
+    font-size: 11px;
+    gap: 4px;
+    height: 28px;
+    border-radius: 5px;
+}
+
+/* Dividers */
+.div-h {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+    margin: 0 3px;
+    flex-shrink: 0;
+}
+
+.div-v {
+    height: 1px;
+    width: 28px;
+    background: var(--border);
+    margin: 3px 0;
+    flex-shrink: 0;
+}
+
+/* Color swatch */
+.csw {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    border: 2px solid var(--border);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.csw:hover {
+    border-color: var(--text-secondary);
+}
+
+/* Toggle switch */
+.tgl {
+    width: 28px;
+    height: 14px;
+    background: var(--bg-active);
+    border-radius: 7px;
+    cursor: pointer;
+    position: relative;
+    transition: background .15s;
+    flex-shrink: 0;
+}
+
+.tgl.on {
+    background: var(--accent);
+}
+
+.tgl::after {
+    content: '';
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: #fff;
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: left .15s;
+}
+
+.tgl.on::after {
+    left: 16px;
+}
+
+/* Compact input */
+.sm-in {
+    width: 42px;
+    background: var(--bg-dark);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    text-align: center;
+    padding: 2px;
+    border-radius: 4px;
+    font-size: 10px;
+    outline: none;
+}
+
+.sm-in:focus {
+    border-color: var(--accent);
+}
+
+/* Range slider */
+input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    background: var(--bg-active);
+    border-radius: 2px;
+    outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+}
+
+/* Sidebar Button Flex Layout */
+.tb-sidebar {
+    width: 100%;
+    justify-content: flex-start;
+    /* Aligns icon and text to the left */
+    padding: 0 10px;
+    gap: 10px;
+    /* Space between icon and text */
+}
+
+/* Ensure FontAwesome icons have a uniform width so text aligns perfectly */
+.tb-sidebar i {
+    width: 16px;
+    text-align: center;
+}
+
+/* ═══════════════════════════════════════════════════
+   RIGHT PANEL
+   ═══════════════════════════════════════════════════ */
+.psec {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+}
+
+.plbl {
+    font-size: 9px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    letter-spacing: .9px;
+    margin-bottom: 5px;
+    font-weight: 700;
+}
+
+.layer-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 6px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-bottom: 1px;
+    font-size: 11px;
+    user-select: none;
+}
+
+.layer-item:hover {
+    background: var(--bg-hover);
+}
+
+.layer-item.sel {
+    background: var(--accent-dim);
+    color: var(--accent);
+}
+
+.vbtn {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 11px;
+}
+
+.vbtn:hover {
+    color: var(--text-primary);
+}
+
+/* ═══════════════════════════════════════════════════
+   TIMELINE
+   ═══════════════════════════════════════════════════ */
+#tl-head {
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    gap: 6px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    height: 26px;
+}
+
+#tl-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+#tl-labels {
+    width: 130px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding-top: 16px;
+    /* ← matches #tl-ruler height so labels align with rows */
+}
+
+#tl-scroll {
+    flex: 1;
+    overflow-x: auto;
+    overflow-y: auto;
+    position: relative;
+}
+
+#tl-grid {
+    position: relative;
+    min-width: 100%;
+}
+
+.tl-llbl {
+    height: 24px;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    font-size: 10px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tl-row {
+    height: 24px;
+    display: flex;
+    align-items: center;
+    position: relative;
+    border-bottom: 1px solid var(--border);
+}
+
+.tl-cell {
+    width: 18px;
+    height: 24px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--grid-line);
+    /* Changed from hardcoded rgba */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.tl-cell:hover {
+    background: var(--bg-hover);
+}
+
+.tl-cell.cur {
+    background: rgba(74, 111, 255, .15);
+}
+
+.tl-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: grab;
+    flex-shrink: 0;
+}
+
+.tl-dot.loop {
+    background: var(--orange);
+}
+
+.tl-ph {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--warning);
+    z-index: 5;
+    pointer-events: none;
+}
+
+#tl-ruler {
+    height: 16px;
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    background: var(--bg-panel);
+    z-index: 2;
+}
+
+.tl-rc {
+    width: 18px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    color: var(--text-dim);
+    cursor: pointer;
+}
+
+.tl-rc:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+}
+
+/* ═══════════════════════════════════════════════════
+   MODAL
+   ═══════════════════════════════════════════════════ */
+.mo-ov {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .4);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mo-box {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    min-width: 340px;
+    max-width: 460px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+.mo-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 16px;
+}
+
+.mo-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.mo-row label {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.mo-row input,
+.mo-row select {
+    background: var(--bg-dark);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 5px 8px;
+    border-radius: 5px;
+    font-size: 11px;
+    width: 150px;
+    outline: none;
+}
+
+.mo-row input:focus,
+.mo-row select:focus {
+    border-color: var(--accent);
+}
+
+.btn {
+    padding: 6px 16px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 11px;
+    transition: background .1s;
+}
+
+.btn:hover {
+    background: var(--bg-active);
+}
+
+.btn-p {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.btn-p:hover {
+    background: var(--accent);
+    color: #fff;
+}
+
+/* ═══════════════════════════════════════════════════
+   CONTEXT MENU
+   ═══════════════════════════════════════════════════ */
+.ctx {
+    position: fixed;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 4px 0;
+    z-index: 200;
+    min-width: 140px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .15);
+}
+
+.ctx-i {
+    padding: 6px 14px;
+    font-size: 11px;
+    cursor: pointer;
+    color: var(--text-primary);
+}
+
+.ctx-i:hover {
+    background: var(--bg-hover);
+}
+
+/* ═══════════════════════════════════════════════════
+   CANVAS & MISC
+   ═══════════════════════════════════════════════════ */
+#main-canvas {
+    transform: translateZ(0);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    outline: none;
+    /* Prevents the focus ring when using keyboard shortcuts */
+
+    /* Disables native browser pinch-to-zoom and swipe-to-scroll 
+       so your custom Paper.js camera tools work flawlessly. */
+    touch-action: none;
+
+    /* Keeps the canvas tack-sharp when zoomed in, completely 
+       disabling bilinear blurring for that crisp pixel look. */
+    image-rendering: -moz-crisp-edges;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+    image-rendering: pixelated;
+}
+
+#canvas-info {
+    position: absolute;
+    bottom: 6px;
+    left: 8px;
+    font-size: 10px;
+    color: var(--text-dim);
+    pointer-events: none;
+    z-index: 10;
+}
+
+#cursor-info {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    font-size: 10px;
+    color: var(--text-dim);
+    pointer-events: none;
+    z-index: 10;
+}
+
+/* Tooltip (left tools) */
+#left-tools .tb[data-tip]:hover::after {
+    content: attr(data-tip);
+    position: absolute;
+    left: 115%;
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    padding: 4px 8px;
+    border-radius: 5px;
+    font-size: 10px;
+    white-space: nowrap;
+    z-index: 60;
+    border: 1px solid var(--border);
+    pointer-events: none;
+}
+
+/* Toast */
+.toast-msg {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-active);
+    color: var(--text-primary);
+    padding: 8px 20px;
+    border-radius: 7px;
+    font-size: 12px;
+    z-index: 300;
+    border: 1px solid var(--border);
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Keyframe Node */
+.tl-dot.keyframe {
+    background: var(--bg-dark);
+    border: 2px solid var(--accent);
+    border-radius: 2px;
+    /* Square/Diamond look instead of a circle */
+    transform: rotate(45deg);
+    width: 8px;
+    height: 8px;
+    top: 5px;
+    left: 4px;
+    z-index: 2;
+}
+
+/* Exposure Bar (The held frame) */
+.tl-exposure {
+    position: absolute;
+    top: 10px;
+    left: -9px;
+    /* Connects backward to the previous cell */
+    width: 18px;
+    /* Width of a standard cell */
+    height: 4px;
+    background: var(--accent);
+    opacity: 0.35;
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════════════
+   RIBBON HEIGHT OVERRIDE  (taller for onion controls)
+   ═══════════════════════════════════════════════════ */
+.ribbon-content {
+    height: 104px;
+}
+
+/* ═══════════════════════════════════════════════════
+   INLINE ONION SKIN CONTROLS (Ribbon)
+   ═══════════════════════════════════════════════════ */
+.onion-ribbon-list {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-height: 86px;
+    min-width: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding-right: 2px;
+}
+
+.onion-rule-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 6px;
+    background: var(--bg-dark);
+    border-radius: 4px;
+    flex-shrink: 0;
+    height: 28px;
+    min-height: 28px;
+}
+
+.onion-sel {
+    background: transparent;
+    color: var(--text-primary);
+    border: none;
+    outline: none;
+    font-size: 10px;
+    cursor: pointer;
+    padding: 0 2px;
+    flex-shrink: 0;
+}
+
+/* Mode dropdown (Relative / Absolute) */
+.onion-rule-row .on-rel {
+    width: 50px;
+}
+
+/* Position dropdown (Below / Above) */
+.onion-rule-row .on-top {
+    width: 58px;
+}
+
+.onion-rule-row .sm-in {
+    font-size: 10px;
+    padding: 2px 3px;
+    height: 20px;
+    width: 36px;
+}
+
+.onion-rule-row input[type="range"] {
+    height: 3px;
+    flex-shrink: 0;
+    width: 52px;
+}
+
+.on-op-label {
+    font-size: 9px;
+    color: var(--text-dim);
+    width: 28px;
+    text-align: right;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════════════════
+   AUDIO WAVEFORM ROW (Timeline)
+   ═══════════════════════════════════════════════════ */
+.tl-audio-row {
+    height: 24px;
+    position: relative;
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+    background: var(--bg-dark);
+}
+
+.tl-audio-row canvas {
+    display: block;
+    height: 24px;
+    image-rendering: auto;
+}
+
+/* Audio label in timeline sidebar */
+.tl-audio-label {
+    height: 24px;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    font-size: 10px;
+    color: var(--accent);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background: var(--bg-dark);
+    gap: 4px;
+}
+
+.tl-audio-label i {
+    font-size: 9px;
+    opacity: 0.7;
+}
+
+/* ═══════════════════════════════════════════════════
+   RESIZABLE PANEL HANDLES
+   ═══════════════════════════════════════════════════ */
+
+/* Handles are absolutely positioned over #app (position:relative).
+   They sit on panel borders without participating in grid flow. */
+.resize-handle {
+    position: absolute;
+    z-index: 15;
+    background: transparent;
+    transition: background 0.15s;
+}
+
+.resize-handle:hover,
+.resize-handle:active {
+    background: var(--accent);
+    transition-delay: 0.05s;
+}
+
+/* Vertical handles (left & right panel edges) — positioned by JS */
+.resize-v {
+    top: 0;
+    bottom: 0;
+    width: 5px;
+    cursor: col-resize;
+}
+
+/* Horizontal handle (timeline top edge) — positioned by JS */
+.resize-h {
+    left: 0;
+    right: 0;
+    height: 5px;
+    cursor: row-resize;
+}

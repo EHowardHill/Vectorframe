@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VectorFrame — Frame-by-Frame Vector Animation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paper.js/0.12.17/paper-full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div id="app">
+
+        <div id="top-bar">
+            <div class="ribbon-tabs">
+                <span
+                    style="font-weight:800;font-size:13px;color:var(--accent);margin-right:16px;display:flex;align-items:center;letter-spacing:-.4px">VectorFrame</span>
+                <div class="ribbon-tab active" data-tab="tab-home">Home</div>
+                <div class="ribbon-tab" data-tab="tab-animation">Animation</div>
+                <div class="ribbon-tab" data-tab="tab-project">Project</div>
+            </div>
+
+            <div class="ribbon-content">
+
+                <div id="tab-home" class="ribbon-panel active">
+                    <div class="ribbon-group">
+                        <div class="ribbon-row">
+                            <button class="tb tb-wide" id="btn-undo" data-tip="Undo (Ctrl+Z)">↶ Undo</button>
+                        </div>
+                        <div class="ribbon-row">
+                            <button class="tb tb-wide" id="btn-redo" data-tip="Redo (Ctrl+Y)">↷ Redo</button>
+                        </div>
+                        <div class="ribbon-group-label">History</div>
+                    </div>
+
+                    <div class="div-v-ribbon"></div>
+
+                    <div class="ribbon-group">
+                        <div class="ribbon-row">
+                            <span style="font-size:10px;color:var(--text-dim);width:40px">Size</span>
+                            <input type="range" id="rng-brush" min="1" max="60" value="4" style="width:70px">
+                            <input type="number" id="v-brush" class="sm-in" min="1" max="60" value="4"
+                                style="width:34px;margin-left:4px">
+                        </div>
+                        <div class="ribbon-row">
+                            <span style="font-size:10px;color:var(--text-dim);width:40px">Smooth</span>
+                            <input type="range" id="rng-smooth" min="1" max="5" value="3" style="width:70px">
+                            <input type="number" id="v-smooth" class="sm-in" min="1" max="5" value="3"
+                                style="width:34px;margin-left:4px">
+                        </div>
+                        <div class="ribbon-group-label">Brush Settings</div>
+                    </div>
+
+                    <div class="div-v-ribbon"></div>
+
+                    <div class="ribbon-group">
+                        <div class="ribbon-row" style="height: 28px;">
+                            <span style="font-size:10px;color:var(--text-dim);width:45px">Pressure</span>
+                            <div class="tgl" id="tgl-pressure" data-tip="Tablet Pressure"></div>
+                        </div>
+                        <div class="ribbon-group-label">Tablet</div>
+                    </div>
+
+                    <div class="div-v-ribbon"></div>
+
+                    <div class="ribbon-group">
+                        <div class="ribbon-row">
+                            <span style="font-size:10px;color:var(--text-dim);width:36px">Stroke</span>
+                            <div class="tgl on" id="tgl-stroke"></div>
+                            <input type="color" id="clr-stroke" value="#1e1e24" class="csw" style="padding:0">
+                            <button class="tb" id="btn-pick-stroke" style="padding:0 4px;font-size:12px;margin-left:4px"
+                                data-tip="Pick Color (Screen)"><i class="fa-solid fa-eye-dropper"></i></button>
+                        </div>
+                        <div class="ribbon-row">
+                            <span style="font-size:10px;color:var(--text-dim);width:36px">Fill</span>
+                            <div class="tgl" id="tgl-fill"></div>
+                            <input type="color" id="clr-fill" value="#4a6fff" class="csw" style="padding:0">
+                            <button class="tb" id="btn-pick-fill" style="padding:0 4px;font-size:12px;margin-left:4px"
+                                data-tip="Pick Color (Screen)"><i class="fa-solid fa-eye-dropper"></i></button>
+                        </div>
+                        <div class="ribbon-group-label">Colors & Style</div>
+                    </div>
+
+                    <div class="div-v-ribbon"></div>
+
+                    <div class="ribbon-group">
+                        <div class="ribbon-row" style="height: 46px; align-items: center;">
+                            <select id="sel-tex"
+                                style="background:var(--bg-dark);border:1px solid var(--border);color:var(--text-primary);font-size:11px;padding:4px 6px;border-radius:4px;width:196px;outline:none;cursor:pointer;">
+                                <option value="none">N/A</option>
+                            </select>
+                        </div>
+                        <div class="ribbon-group-label">Texture</div>
+                    </div>
+
+                    <div class="div-v-ribbon"></div>
+
+                    <div class="ribbon-group">
+                        <div class="ribbon-row">
+                            <button class="tb tb-wide" id="btn-zfront" data-tip="Bring to Front">▲ To Front</button>
+                        </div>
+                        <div class="ribbon-row">
+                            <button class="tb tb-wide" id="btn-zback" data-tip="Push to Back">▼ To Back</button>
+                        </div>
+                        <div class="ribbon-group-label">Z-Order</div>
+                    </div>
+                </div>
+
+                <div id="tab-animation" class="ribbon-panel">
+                    <div class="ribbon-group">
+                        <div class="ribbon-row">
+                            <button class="tb" id="btn-prev">◂</button>
+                            <button class="tb" id="btn-play" style="font-size:14px">▶</button>
+                            <button class="tb" id="btn-next">▸</button>
+                        </div>
+                        <div class="ribbon-row" style="justify-content:center;margin-top:2px">
+                            <span id="frame-disp"
+                                style="font-size:11px;font-weight:600;color:var(--text-primary);min-width:50px;text-align:center">1
+                                / 24</span>
+                        </div>
+                        <div class="ribbon-group-label">Playback</div>
+                    </div>
+
+                    <div class="div-v-ribbon"></div>
+
+                    <div class="ribbon-group">
+                        <div class="ribbon-row" style="height: 28px;">
+                            <span style="font-size:10px;color:var(--text-dim);margin-right:6px">FPS</span>
+                            <input class="sm-in" id="in-fps" type="number" min="1" max="60" value="12"
+                                style="width:40px">
+                        </div>
+                        <div class="ribbon-group-label">Timing</div>
+                    </div>
+
+                    <div class="div-v-ribbon"></div>
+
+                    <div class="ribbon-group" style="min-width:400px;">
+                        <div style="display:flex;gap:8px;height:calc(100% - 14px);">
+                            <div
+                                style="display:flex;flex-direction:column;gap:5px;flex-shrink:0;justify-content:center;">
+                                <div class="ribbon-row" style="height:22px;">
+                                    <span style="font-size:10px;color:var(--text-dim);margin-right:4px">Onion</span>
+                                    <div class="tgl" id="tgl-onion"></div>
+                                </div>
+                                <div class="ribbon-row" style="height:22px;">
+                                    <label
+                                        style="font-size:10px;color:var(--text-dim);display:flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap">
+                                        <input type="checkbox" id="chk-onion-isolate" style="margin:0"> Isolate Layer
+                                    </label>
+                                </div>
+                                <div class="ribbon-row" style="height:22px;">
+                                    <button class="tb tb-wide" id="btn-add-onion"
+                                        style="font-size:10px;height:22px;padding:0 8px;color:var(--accent)">+ Add
+                                        Rule</button>
+                                </div>
+                            </div>
+                            <div id="onion-ribbon-list" class="onion-ribbon-list"></div>
+                        </div>
+                        <div class="ribbon-group-label">Guides</div>
+                    </div>
+                </div>
+
+                <div id="tab-project" class="ribbon-panel">
+                    <div class="ribbon-group">
+                        <div class="ribbon-row">
+                            <button class="tb tb-wide" id="btn-new" data-tip="New Project">📄 New</button>
+                        </div>
+                        <div class="ribbon-row">
+                            <button class="tb tb-wide" id="btn-save" data-tip="Save Project">💾 Save</button>
+                            <button class="tb tb-wide" id="btn-load" data-tip="Load Project" style="margin-left:6px">📂
+                                Load</button>
+                        </div>
+                        <div class="ribbon-group-label">File</div>
+                    </div>
+
+                    <div class="div-v-ribbon"></div>
+
+                    <div class="ribbon-group">
+                        <div class="ribbon-row" style="height: 28px;">
+                            <button class="tb tb-wide" id="btn-prefs">⚙ Preferences</button>
+                        </div>
+                        <div class="ribbon-group-label">Settings</div>
+                    </div>
+
+                    <div class="div-v-ribbon"></div>
+
+                    <div class="ribbon-group">
+                        <div class="ribbon-row">
+                            <button class="tb tb-wide" id="btn-export-png">⬇ Export PNG</button>
+                        </div>
+                        <div class="ribbon-row">
+                            <button class="tb tb-wide" id="btn-export-mp4" data-tip="Export animation as MP4 video">🎬 Export MP4</button>
+                        </div>
+                        <div class="ribbon-group-label">Export</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div id="left-tools">
+            <button class="tb tb-sidebar active" data-tool="brush" data-tip="Brush (B)">
+                <i class="fa-solid fa-paintbrush"></i><span>Brush</span>
+            </button>
+            <button class="tb tb-sidebar" data-tool="select" data-tip="Select / Edit Vertices (V)">
+                <i class="fa-solid fa-arrow-pointer"></i><span>Select</span>
+            </button>
+            <button class="tb tb-sidebar" data-tool="lasso" data-tip="Lasso Select (L)">
+                <i class="fa-solid fa-draw-polygon"></i><span>Lasso</span>
+            </button>
+            <button class="tb tb-sidebar" data-tool="eraser" data-tip="Eraser (E)">
+                <i class="fa-solid fa-eraser"></i><span>Eraser</span>
+            </button>
+            <div class="div-v"></div>
+            <button class="tb tb-sidebar" data-tool="fill" data-tip="Paint Bucket (G)">
+                <i class="fa-solid fa-fill-drip"></i><span>Fill</span>
+            </button>
+            <button class="tb tb-sidebar" data-tool="hide-edge" data-tip="Hide Edge (H)">
+                <i class="fa-solid fa-eye-slash"></i><span>Hide Edge</span>
+            </button>
+            <div class="div-v"></div>
+            <button class="tb tb-sidebar" data-tool="translate" data-tip="Translate Layer (T)">
+                <i class="fa-solid fa-arrows-up-down-left-right"></i><span>Translate</span>
+            </button>
+            <button class="tb tb-sidebar" data-tool="rotate" data-tip="Rotate Layer (R)">
+                <i class="fa-solid fa-rotate-right"></i><span>Rotate</span>
+            </button>
+            <button class="tb tb-sidebar" data-tool="scale" data-tip="Scale Layer (S)">
+                <i class="fa-solid fa-expand"></i><span>Scale</span>
+            </button>
+            <div class="div-v"></div>
+            <button class="tb tb-sidebar" data-tool="pan" data-tip="Pan View (Space / Middle Mouse)">
+                <i class="fa-solid fa-hand"></i><span>Pan</span>
+            </button>
+            <button class="tb tb-sidebar" data-tool="zoom" data-tip="Zoom (Z / Scroll)">
+                <i class="fa-solid fa-magnifying-glass"></i><span>Zoom</span>
+            </button>
+            <button class="tb tb-sidebar" id="btn-resetview" data-tip="Reset View">
+                <i class="fa-solid fa-compress"></i><span>Reset View</span>
+            </button>
+        </div>
+
+        <div id="canvas-area">
+            <canvas id="main-canvas"></canvas>
+            <div id="canvas-info">100% · 640×480</div>
+            <div id="cursor-info"></div>
+        </div>
+
+        <div id="right-panel">
+            <div class="psec">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+                    <div class="plbl" style="margin:0">Layer Opacity</div>
+                    <div style="display:flex;align-items:center;gap:2px">
+                        <input type="number" id="v-opacity" class="sm-in" min="0" max="100" value="100"
+                            style="width:36px">
+                        <span style="font-size:10px;color:var(--text-dim)">%</span>
+                    </div>
+                </div>
+                <input type="range" id="rng-opacity" min="0" max="100" value="100" style="width:100%">
+            </div>
+
+            <div class="psec" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+                    <div class="plbl" style="margin:0">Layers</div>
+                    <div style="display:flex;gap:1px">
+                        <button class="tb" id="btn-newlyr" style="width:22px;height:22px;font-size:15px"
+                            title="New Layer">+</button>
+                        <button class="tb" id="btn-duplyr" style="width:22px;height:22px;font-size:11px"
+                            title="Duplicate">⧉</button>
+                        <button class="tb" id="btn-dellyr"
+                            style="width:22px;height:22px;font-size:13px;color:var(--warning)" title="Delete">×</button>
+                        <button class="tb" id="btn-imglyr" style="width:22px;height:22px;font-size:11px"
+                            title="Import Image">🖼</button>
+                    </div>
+                </div>
+                <div id="layers-list" style="flex:1;overflow-y:auto"></div>
+            </div>
+        </div>
+
+        <div id="timeline-bar">
+            <div id="tl-head">
+                <span style="font-size:10px;font-weight:600;color:var(--text-secondary)">Timeline</span>
+
+                <button class="tb tb-wide" id="btn-add-dup" data-tip="Duplicate Key (F6)"
+                    style="margin-left:12px;font-size:10px;color:var(--accent)">◆ Dup Key</button>
+
+                <button class="tb tb-wide" id="btn-add-blank" data-tip="Blank Key (F7)"
+                    style="margin-left:4px;font-size:10px;color:var(--accent)">◇ Blank Key</button>
+
+                <button class="tb tb-wide" id="btn-del-node" data-tip="Delete Keyframe"
+                    style="margin-left:4px;font-size:10px;color:var(--warning)">× Del Key</button>
+
+                <div class="div-h" style="margin:0 8px"></div>
+                <button class="tb tb-wide" id="btn-load-audio" style="font-size:10px;color:var(--accent)"
+                    data-tip="Load Audio Track">
+                    <i class="fa-solid fa-music" style="margin-right:3px"></i> Audio
+                </button>
+                <span id="audio-label"
+                    style="font-size:9px;color:var(--text-dim);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-left:4px">No
+                    audio</span>
+                <button class="tb" id="btn-remove-audio"
+                    style="width:18px;height:18px;font-size:11px;color:var(--warning);margin-left:2px"
+                    data-tip="Remove Audio">×</button>
+                <input type="range" id="rng-audio-vol" min="0" max="100" value="80" style="width:50px;margin-left:4px"
+                    title="Audio Volume">
+                <span id="v-audio-vol" style="font-size:9px;color:var(--text-dim);width:28px;margin-left:2px">80%</span>
+
+                <div style="flex:1"></div>
+                <span style="font-size:10px;color:var(--text-dim)">End:</span>
+                <input class="sm-in" id="in-endframe" type="number" min="1" max="999" value="24" style="width:40px">
+            </div>
+            <div id="tl-body">
+                <div id="tl-labels"></div>
+                <div id="tl-scroll">
+                    <div id="tl-grid">
+                        <div id="tl-ruler"></div>
+                        <div id="tl-audio-row" class="tl-audio-row">
+                            <canvas id="audio-waveform"></canvas>
+                        </div>
+                        <div id="tl-rows"></div>
+                        <div class="tl-ph" id="tl-playhead"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-prefs" class="mo-ov" style="display:none">
+        <div class="mo-box">
+            <div class="mo-title">Preferences</div>
+            <div class="mo-row"><label>Canvas Width</label><input id="pref-w" type="number" value="640"></div>
+            <div class="mo-row"><label>Canvas Height</label><input id="pref-h" type="number" value="480"></div>
+            <div class="mo-row">
+                <label>Preset</label>
+                <select id="pref-preset">
+                    <option value="">Custom</option>
+                    <option value="256x224">NES (256×224)</option>
+                    <option value="320x240">QVGA (320×240)</option>
+                    <option value="640x480" selected>VGA (640×480)</option>
+                    <option value="800x600">SVGA (800×600)</option>
+                    <option value="1280x720">HD 720p</option>
+                    <option value="1920x1080">Full HD 1080p</option>
+                </select>
+            </div>
+            <div class="mo-row"><label>End Frame</label><input id="pref-end" type="number" value="24"></div>
+            <div class="mo-row"><label>FPS</label><input id="pref-fps" type="number" min="1" max="60" value="12"></div>
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+                <button class="btn" id="pref-cancel">Cancel</button>
+                <button class="btn btn-p" id="pref-apply">Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="file-import" accept="image/*" style="display:none">
+    <input type="file" id="audio-import"
+        accept="audio/wav,audio/mpeg,audio/ogg,audio/flac,audio/aac,audio/mp4,audio/webm,.wav,.mp3,.ogg,.flac,.aac,.m4a,.webm"
+        style="display:none">
+
+    <div class="ctx" id="dot-ctx" style="display:none">
+        <div class="ctx-i" data-act="copy-frame">Copy Keyframe</div>
+        <div class="ctx-i" data-act="paste-frame">Paste Keyframe</div>
+        <div class="ctx-i" data-act="toggle-loop">Toggle Loop ◎</div>
+        <hr style="margin:4px 0; border:none; border-top:1px solid var(--border)">
+        <div class="ctx-i" data-act="delete-keyframe">Delete Keyframe</div>
+        <div class="ctx-i" data-act="clear-exposure">Clear Exposure (Cut)</div>
+        <hr style="margin:4px 0; border:none; border-top:1px solid var(--border)">
+        <div class="ctx-i" data-act="insert-frame">Insert Frame (Push Right)</div>
+        <div class="ctx-i" data-act="remove-frame">Remove Frame (Pull Left)</div>
+    </div>
+
+    <div id="modal-load" class="mo-ov" style="display:none;z-index:999">
+        <div class="mo-box">
+            <div class="mo-title">Load Project</div>
+            <div id="project-list" style="max-height:250px;overflow-y:auto;margin-bottom:12px;font-size:12px"></div>
+            <div style="display:flex;justify-content:flex-end">
+                <button class="btn" id="btn-close-load">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/01-state.js"></script>
+    <script src="js/02-brush-textures.js"></script>
+    <script src="js/03-paper-setup.js"></script>
+    <script src="js/04-serialization.js"></script>
+    <script src="js/05-history.js"></script>
+    <script src="js/06-layers.js"></script>
+    <script src="js/07-render.js"></script>
+    <script src="js/08-tool-brush.js"></script>
+    <script src="js/09-tool-select.js"></script>
+    <script src="js/10-tool-eraser.js"></script>
+    <script src="js/11-tool-fill.js"></script>
+    <script src="js/12-tool-hide-edge.js"></script>
+    <script src="js/13-tool-transform.js"></script>
+    <script src="js/14-tool-camera.js"></script>
+    <script src="js/15-tool-activation.js"></script>
+    <script src="js/16-timeline.js"></script>
+    <script src="js/17-layers-ui.js"></script>
+    <script src="js/18-export.js"></script>
+    <script src="js/19-import.js"></script>
+    <script src="js/20-project-io.js"></script>
+    <script src="js/21-preferences.js"></script>
+    <script src="js/22-ui-bindings.js"></script>
+    <script src="js/23-keyboard.js"></script>
+    <script src="js/24-init.js"></script>
+    <script src="js/25-audio.js"></script>
+    <script src="js/26-export-mp4.js"></script>
+    <script src="js/27-resize-panels.js"></script>
+</body>
+
+</html>
