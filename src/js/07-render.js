@@ -4,34 +4,30 @@
     var S = VF.S, P;
     function getP() { if (!P) P = VF.P; return P; }
 
-    /* Temp Layers created for onion skins — cleaned up each render */
-    VF._onionTempLayers = [];
-
     /* Recursively tint every stroke/fill in an item tree */
-    function tintTree(item, tintColor, layerOpacity) {
+    /* Updated to apply alpha directly to the colors to bypass the Group Opacity bug */
+    function tintTree(item, tintColor, skinOpacity) {
         if (!item) return;
 
-        /* Skip rasters (texture bitmaps) — we don't tint those for
-           onion skins; the guide path underneath provides the outline */
         if (item.className === 'Raster') {
-            item.visible = false;
+            item.opacity = skinOpacity * 0.6; // Slightly dim images so they don't overpower vectors
             return;
         }
 
         if (item.strokeColor) {
             var sc = tintColor.clone();
-            sc.alpha = tintColor.alpha * layerOpacity;
+            sc.alpha = skinOpacity; // Map the opacity exactly to the slider's 0-1 percentage
             item.strokeColor = sc;
         }
         if (item.fillColor) {
             var fc = tintColor.clone();
-            fc.alpha = 0.12 * layerOpacity; // Scale the base fill alpha
+            fc.alpha = skinOpacity * 0.3; // Make fills more transparent than strokes to reduce clutter
             item.fillColor = fc;
         }
 
         if (item.children) {
             var kids = item.children.slice();
-            kids.forEach(function (child) { tintTree(child, tintColor, layerOpacity); });
+            kids.forEach(function (child) { tintTree(child, tintColor, skinOpacity); });
         }
     }
 
@@ -39,51 +35,46 @@
         var P = getP();
         var f = S.tl.frame;
 
-        /* ── Clean up previous onion temp Layers ── */
-        VF._onionTempLayers.forEach(function (tl) {
-            tl.removeChildren();
-            tl.remove();
-        });
-        VF._onionTempLayers = [];
-
-        /* FIX 4: Don't activate system layers — just clear their children.
-           Activating them here changes the active layer before content
-           loading begins, which is unnecessary and fragile. */
+        /* ── Flush dedicated Onion Skin layers ── */
         VF.onionLayerBg.removeChildren();
         VF.onionLayerFg.removeChildren();
 
         var sorted = [].concat(S.layers).sort(function (a, b) { return a.z - b.z; });
         sorted.forEach(function (l, i) {
+            /* Ensure layer has all settings (safe for old projects) */
+            if (VF.ensureLayerSettings) VF.ensureLayerSettings(l);
+
             var pl = VF.pLayers[l.id]; if (!pl) return;
             pl.visible = l.vis;
-            pl.opacity = l.opacity;
+
             VF.loadFrame(l.id, f);
 
+            // Prevent Paper.js Layer parallax bug by applying opacity to the Raster child
+            if (l.type === 'image') {
+                pl.opacity = 1;
+                pl.children.forEach(function (c) { c.opacity = l.opacity; });
+            } else {
+                pl.opacity = l.opacity;
+            }
+
+            /* ── Apply blend mode ── */
+            if (VF.applyBlendMode) VF.applyBlendMode(l, pl);
+
+            // Keeps normal artwork perfectly sandwiched between the bg and fg Onion Layers
             if (i === 0) pl.insertAbove(VF.onionLayerBg);
             else pl.insertAbove(VF.pLayers[sorted[i - 1].id]);
         });
 
         /* ───────────────────────────────────────────────
-                   ADVANCED ONION SKINNING
-                   ─────────────────────────────────────────────── */
+                    ADVANCED ONION SKINNING
+           ─────────────────────────────────────────────── */
         if (S.cfg.onion && !S.tl.playing) {
 
-            /* ── THE CAMERA BAKE FIX ──
-               Instantly snap the camera to 1:1 project space so Paper.js 
-               doesn't bake the current zoom/pan into the generated items. */
             var oldZoom = VF.view.zoom;
             var oldCenter = VF.view.center.clone();
             VF.view.zoom = 1;
             VF.view.center = new P.Point(S.canvas.w / 2, S.canvas.h / 2);
-            VF.view.update(); // Force internal matrix update
-
-            /* Identify the bottom-most and top-most content layers
-               for positioning onion layers in the stack */
-            var firstContentPL = sorted.length > 0 ? VF.pLayers[sorted[0].id] : null;
-            var lastContentPL = sorted.length > 0 ? VF.pLayers[sorted[sorted.length - 1].id] : null;
-
-            var aboveAnchor = lastContentPL;
-            var belowAnchor = firstContentPL;
+            VF.view.update();
 
             S.onions.forEach(function (skin) {
                 var targetF = skin.rel ? f + skin.val : skin.val - 1;
@@ -91,11 +82,13 @@
 
                 var isFuture = skin.rel ? skin.val > 0 : (skin.val - 1) > f;
                 var tintColor = isFuture
-                    ? new P.Color(.2, .6, .2, .6)
-                    : new P.Color(.2, .2, .8, .6);
+                    ? new P.Color(0.2, 0.8, 0.2)  // Green
+                    : new P.Color(0.2, 0.4, 1.0); // Blue
+
+                var skinOpacity = skin.op / 100;
 
                 S.layers.forEach(function (l) {
-                    if (l.type !== 'vector' || !l.vis) return;
+                    if (!l.vis) return;
                     if (S.cfg.onionIsolate && l.id !== S.activeId) return;
 
                     var res = VF.getResolvedFrame(l, targetF);
@@ -103,74 +96,120 @@
 
                     if (res && (!curRes || res.keyFrame !== curRes.keyFrame)) {
                         var d = res.data;
-                        if (!d || !Array.isArray(d) || d.length === 0) return;
+                        if (!d || (Array.isArray(d) && d.length === 0)) return;
 
-                        var onionPL = new P.Layer();
-                        onionPL.name = '_Onion_' + l.id + '_f' + targetF;
+                        var targetLayer = skin.top ? VF.onionLayerFg : VF.onionLayerBg;
 
-                        var layerOpacity = skin.op / 100;
+                        // We still use a Group for organization, but DO NOT apply opacity to it!
+                        // This entirely prevents the Paper.js group-opacity camera bug.
+                        var skinGroup = new P.Group();
+                        targetLayer.addChild(skinGroup);
 
-                        VF._onionTempLayers.push(onionPL);
-                        onionPL.activate();
+                        if (l.type === 'vector') {
+                            d.forEach(function (j) {
+                                try {
+                                    var parsed = null;
+                                    try { parsed = JSON.parse(j); } catch (_) { parsed = null; }
 
-                        d.forEach(function (j) {
-                            try {
-                                var parsed = null;
-                                try { parsed = JSON.parse(j); } catch (_) { parsed = null; }
+                                    if (parsed && parsed.__texStroke) {
+                                        if (parsed.pressurePoints && parsed.pressurePoints.length > 1) {
+                                            var tc = tintColor.clone();
+                                            tc.alpha = skinOpacity;
 
-                                if (parsed && parsed.__texStroke) {
-                                    if (parsed.pressurePoints && parsed.pressurePoints.length > 1) {
-                                        var pp = new P.Path({
-                                            strokeColor: tintColor,
-                                            strokeWidth: parsed.size || 2,
-                                            strokeCap: 'round',
-                                            opacity: 0.6 * layerOpacity // ✅ Apply directly to Path
-                                        });
-                                        parsed.pressurePoints.forEach(function (p) {
-                                            pp.add(new P.Point(p.x, p.y));
-                                        });
-                                        pp.simplify(5);
-                                    } else if (parsed.pathJSON) {
-                                        var guide = onionPL.importJSON(parsed.pathJSON);
-                                        if (guide) {
-                                            guide.visible = true;
-                                            guide.strokeColor = tintColor;
-                                            guide.strokeWidth = parsed.size || 2;
-                                            guide.fillColor = null;
-                                            guide.opacity = 0.6 * layerOpacity; // ✅ Apply directly to Path
+                                            var pp = new P.Path({
+                                                strokeColor: tc,
+                                                strokeWidth: parsed.size || 2,
+                                                strokeCap: 'round'
+                                            });
+                                            parsed.pressurePoints.forEach(function (p) {
+                                                pp.add(new P.Point(p.x, p.y));
+                                            });
+                                            pp.simplify(5);
+                                            skinGroup.addChild(pp);
+                                        } else if (parsed.pathJSON) {
+                                            var tempGroup = new P.Group({ insert: false });
+                                            var guide = tempGroup.importJSON(parsed.pathJSON);
+                                            if (guide) {
+                                                guide.remove(); // detach from temp
+                                                guide.visible = true;
+
+                                                var tc2 = tintColor.clone();
+                                                tc2.alpha = skinOpacity;
+
+                                                guide.strokeColor = tc2;
+                                                guide.strokeWidth = parsed.size || 2;
+                                                guide.fillColor = null;
+                                                skinGroup.addChild(guide);
+                                            }
                                         }
+                                    } else {
+                                        var item = skinGroup.importJSON(j);
+                                        if (item) tintTree(item, tintColor, skinOpacity);
                                     }
-                                } else {
-                                    var item = onionPL.importJSON(j);
-                                    if (item) {
-                                        tintTree(item, tintColor, layerOpacity); // ✅ Pass opacity down to standard items
-                                    }
-                                }
-                            } catch (e) { }
-                        });
-
-                        if (skin.top) {
-                            if (aboveAnchor) {
-                                onionPL.insertAbove(aboveAnchor);
-                                aboveAnchor = onionPL;
+                                } catch (e) { }
+                            });
+                        } else if (l.type === 'image' && l.imgData) {
+                            var imgR = new P.Raster({ source: l.imgData });
+                            if (d.matrix) {
+                                imgR.matrix = new P.Matrix(d.matrix[0], d.matrix[1], d.matrix[2], d.matrix[3], d.matrix[4], d.matrix[5]);
+                            } else {
+                                imgR.position = new P.Point(S.canvas.w / 2, S.canvas.h / 2);
                             }
-                        } else {
-                            if (belowAnchor) {
-                                onionPL.insertBelow(belowAnchor);
-                                belowAnchor = onionPL;
-                            }
+                            imgR.opacity = skinOpacity * 0.5; // Apply directly to the Raster
+                            skinGroup.addChild(imgR);
                         }
                     }
                 });
             });
 
-            /* ── RESTORE CAMERA ──
-               Put the camera back exactly where the user had it. */
             VF.view.zoom = oldZoom;
             VF.view.center = oldCenter;
             VF.view.update();
         }
 
+        /* ───────────────────────────────────────────────
+                    SKETCH WOBBLE POST-PROCESS
+           ─────────────────────────────────────────────── */
+        if (VF.applyWobbleEffects) {
+            VF.applyWobbleEffects(sorted, f);
+        }
+
+        /* ───────────────────────────────────────────────
+                            GLOBAL GRAIN EFFECT
+           ─────────────────────────────────────────────── */
+        if (VF.grainGroup && VF.grainRaster && VF.grainClip) {
+            if (S.cfg.grain) {
+                VF.grainGroup.visible = true;
+                VF.grainRaster.opacity = (S.cfg.grainAmt / 100) * 0.5;
+
+                // Update clipping mask to perfectly fit current project bounds
+                VF.grainClip.bounds.x = 0;
+                VF.grainClip.bounds.y = 0;
+                VF.grainClip.bounds.width = S.canvas.w;
+                VF.grainClip.bounds.height = S.canvas.h;
+
+                // Reset matrix to identity so scaling doesn't compound infinitely
+                VF.grainRaster.matrix = new P.Matrix();
+
+                // Scale the grain so it covers the canvas + 60% padding
+                var scaleX = (S.canvas.w * 1.6) / 1024;
+                var scaleY = (S.canvas.h * 1.6) / 1024;
+                VF.grainRaster.scale(Math.max(1, scaleX, scaleY));
+
+                // Create a per-frame stable seed so the offset "boils"
+                var rand = VF.seededRandom(f * 1234);
+
+                // Shift randomly within the 60% padding bounds to hide edges
+                var ox = (rand() - 0.5) * (S.canvas.w * 0.5);
+                var oy = (rand() - 0.5) * (S.canvas.h * 0.5);
+
+                VF.grainRaster.position = new P.Point(S.canvas.w / 2 + ox, S.canvas.h / 2 + oy);
+            } else {
+                VF.grainGroup.visible = false;
+            }
+        }
+
+        if (VF.fxLayer) VF.fxLayer.bringToFront();
         if (VF.pLayers[S.activeId]) VF.pLayers[S.activeId].activate();
 
         VF.fgLayer.bringToFront();

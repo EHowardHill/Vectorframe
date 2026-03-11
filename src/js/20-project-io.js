@@ -14,119 +14,194 @@
             activeId: S.activeId,
             nextId: S.nextId,
             cfg: S.cfg,
-            onions: S.onions
+            onions: S.onions,
+            audioData: S.audioData,
+            audioFilename: S.audioFilename
         };
     }
 
-    VF.doSave = function (isAutosave) {
-        VF.saveFrame();
-        var statePayload = getSaveState();
-        var namePayload = null;
+    /* ═══════════════════════════════════════════════════
+           WINDOW TITLE HELPER
+           ═══════════════════════════════════════════════════ */
+    VF.updateWindowTitle = function () {
+        if (!window.__TAURI__ || !window.__TAURI__.window) return;
 
-        if (!isAutosave) {
-            var name = prompt("Enter project name:", "my_animation");
-            if (!name) return;
-            namePayload = name;
+        var title = "Pompedin";
+        if (S.currentProjectPath) {
+            var name = S.currentProjectPath.replace(/\\/g, '/').split('/').pop();
+            title += " - " + name;
+        } else {
+            title += " - Untitled";
         }
 
-        // TAURI IPC SAVE
-        const { invoke } = window.__TAURI__.core;
+        // Tauri v2 API for window management
+        var win = window.__TAURI__.window.getCurrentWindow();
+        win.setTitle(title).catch(function (e) { console.error("Failed to set title", e); });
+    };
 
-        invoke('save_project', {
-            state: statePayload,
-            name: namePayload,
-            isAutosave: isAutosave
-        }).then(function (filename) {
-            if (!isAutosave) VF.toast('Saved: ' + filename);
+    /* ═══════════════════════════════════════════════════
+       SAVE PROJECT
+       - 'autosave': silent write to internal directory
+       - 'save': overwrite current path (or Save As if none)
+       - 'save-as': force native OS save dialog
+       ═══════════════════════════════════════════════════ */
+    VF.doSave = function (mode) {
+        // Fallback for the autosave timer in 24-init.js passing true
+        if (mode === true) mode = 'autosave';
+
+        VF.saveFrame();
+        var statePayload = getSaveState();
+        var invoke = window.__TAURI__.core.invoke;
+
+        if (mode === 'autosave') {
+            invoke('save_project', {
+                state: statePayload,
+                name: null,
+                isAutosave: true
+            }).catch(function (e) { console.error("Autosave failed", e); });
+            return;
+        }
+
+        // Direct Save (Ctrl+S) if we already have a path
+        if (mode === 'save' && S.currentProjectPath) {
+            invoke('save_project_to_path', { state: statePayload, path: S.currentProjectPath })
+                .then(function () {
+                    var name = S.currentProjectPath.replace(/\\/g, '/').split('/').pop();
+                    VF.toast('Saved: ' + name);
+                })
+                .catch(function (e) {
+                    console.error("Save failed", e);
+                    VF.toast('Save failed');
+                });
+            return;
+        }
+
+        // Save As (or Save with no active path)
+        var save = window.__TAURI__.dialog.save;
+
+        var getDir = S.currentProjectPath ? Promise.resolve(null) : invoke('get_projects_dir');
+
+        getDir.then(function (projDir) {
+            return save({
+                title: 'Save Project',
+                defaultPath: S.currentProjectPath || (projDir + '/my_animation.json'),
+                filters: [{ name: 'Pompedin Project', extensions: ['json'] }]
+            });
+        }).then(function (filePath) {
+            if (!filePath) return; // User cancelled
+
+            S.currentProjectPath = filePath; // Update the active path
+
+            return invoke('save_project_to_path', { state: statePayload, path: filePath })
+                .then(function () {
+                    var name = filePath.replace(/\\/g, '/').split('/').pop();
+                    VF.updateWindowTitle(); // <--- ADD THIS
+                    VF.toast('Saved: ' + name);
+                });
         }).catch(function (e) {
             console.error("Save failed", e);
-            if (!isAutosave) VF.toast('Save failed');
+            VF.toast('Save failed');
         });
     };
 
-    $('#btn-save').on('click', function () { VF.doSave(false); });
+    $('#btn-save').on('click', function () { VF.doSave('save'); });
+    $('#btn-save-as').on('click', function () { VF.doSave('save-as'); });
 
+    /* ═══════════════════════════════════════════════════
+       NEW PROJECT
+       ═══════════════════════════════════════════════════ */
     $('#btn-new').on('click', function () {
-        if (!confirm('Start new project? Unsaved changes will be lost.')) return;
+        var ask = window.__TAURI__.dialog.ask;
 
-        S.layers = [];
-        for (var k in VF.pLayers) { VF.pLayers[k].remove(); delete VF.pLayers[k]; }
+        ask('Start new project? Unsaved changes will be lost.', {
+            title: 'New Project',
+            kind: 'warning'
+        }).then(function (confirmed) {
+            if (!confirmed) return;
 
-        S.tl.frame = 0;
-        S.nextId = 1;
-        VF.undoStack = []; VF.redoStack = [];
+            S.layers = [];
+            for (var k in VF.pLayers) { VF.pLayers[k].remove(); delete VF.pLayers[k]; }
 
-        VF.loadPrefs();
+            S.tl.frame = 0;
+            S.nextId = 1;
+            VF.undoStack = []; VF.redoStack = [];
 
-        $('#in-endframe').val(S.tl.max);
-        $('#in-fps').val(S.tl.fps);
+            // Reset per-project configurations
+            S.canvas = { w: 800, h: 600 };
+            S.tl.max = 24;
+            S.tl.fps = 12;
+            S.currentProjectPath = null; // Unlink file path
 
-        VF.addLayer('Layer 1', 'vector');
+            // Clear Audio
+            S.audioData = null;
+            S.audioFilename = null;
+            if (VF.removeAudio) VF.removeAudio(true); // Pass true to silence the toast
 
-        VF.resetView();
-        VF.render();
-        VF.uiTimeline();
-        VF.toast('New project started');
-    });
-
-    $('#btn-load').on('click', function () {
-        // TAURI IPC LIST PROJECTS
-        const { invoke } = window.__TAURI__.core;
-
-        invoke('list_projects').then(function (files) {
-            var h = '';
-            files.forEach(function (f) {
-                var d = new Date(f.modified * 1000).toLocaleString();
-                h += '<div class="proj-item" data-file="' + f.filename + '" style="padding:6px 8px;border-bottom:1px solid var(--border);cursor:pointer;display:flex;justify-content:space-between;color:var(--text-primary)">' +
-                    '<span>' + f.filename + '</span>' +
-                    '<span style="font-size:10px;color:var(--text-dim)">' + d + '</span>' +
-                    '</div>';
-            });
-            $('#project-list').html(h || '<div style="padding:8px;color:var(--text-dim)">No projects found.</div>');
-            $('#modal-load').show();
-
-            $('.proj-item').on('click', function () {
-                loadProjectFile($(this).data('file'));
-                $('#modal-load').hide();
-            });
-
-            $('.proj-item').hover(
-                function () { $(this).css('background', 'var(--bg-active)'); },
-                function () { $(this).css('background', ''); }
-            );
-        }).catch(function (err) {
-            console.error("Failed to list projects", err);
-        });
-    });
-
-    $('#btn-close-load').on('click', function () { $('#modal-load').hide(); });
-
-    function loadProjectFile(filename) {
-        // TAURI IPC LOAD PROJECT
-        const { invoke } = window.__TAURI__.core;
-
-        invoke('load_project', { filename: filename }).then(function (d) {
-            var state = d.state || d;
-            S.canvas = state.canvas || S.canvas;
-            S.tl = state.tl || S.tl;
-            S.activeId = state.activeId || (state.layers && state.layers.length > 0 ? state.layers[0].id : 1);
-            S.nextId = state.nextId || S.nextId;
-            S.cfg = state.cfg || S.cfg;
-            S.onions = state.onions || S.onions;
-
-            $('#in-endframe').val(S.tl.max);
-            $('#in-fps').val(S.tl.fps);
-            $('#rng-brush').val(S.cfg.brushSize || 4);
-            $('#v-brush').val(S.cfg.brushSize || 4);
-
-            VF.restoreSnapshot(JSON.stringify(state.layers));
-            VF.fitCanvas();
+            VF.updateWindowTitle();
+            VF.syncPrefsUI();
+            VF.addLayer('Layer 1', 'vector');
             VF.resetView();
-            VF.toast('Loaded: ' + filename);
-        }).catch(function (err) {
-            VF.toast('Error loading project');
-            console.error(err);
+            VF.render();
+            VF.uiTimeline();
+            VF.toast('New project started');
         });
-    }
+    });
+
+    /* ═══════════════════════════════════════════════════
+       LOAD PROJECT — native open dialog
+       ═══════════════════════════════════════════════════ */
+    $('#btn-load').on('click', function () {
+        var invoke = window.__TAURI__.core.invoke;
+        var open = window.__TAURI__.dialog.open;
+
+        invoke('get_projects_dir').then(function (projDir) {
+            return open({
+                title: 'Open Project',
+                defaultPath: projDir,
+                multiple: false,
+                filters: [{ name: 'Pompedin Project', extensions: ['json'] }]
+            });
+        }).then(function (filePath) {
+            if (!filePath) return;
+
+            return invoke('load_project_from_path', { path: filePath }).then(function (d) {
+                var state = d.state || d;
+                S.canvas = state.canvas || S.canvas;
+                S.tl = state.tl || S.tl;
+                S.activeId = state.activeId || (state.layers && state.layers.length > 0 ? state.layers[0].id : 1);
+                S.nextId = state.nextId || S.nextId;
+                S.cfg = state.cfg || S.cfg;
+                S.onions = state.onions || S.onions;
+
+                // Restore Audio from project
+                S.audioData = state.audioData || null;
+                S.audioFilename = state.audioFilename || null;
+                if (S.audioData && S.audioFilename) {
+                    if (VF.loadAudioFromProject) VF.loadAudioFromProject(S.audioData, S.audioFilename, true);
+                } else {
+                    if (VF.removeAudio) VF.removeAudio(true);
+                }
+
+                S.currentProjectPath = filePath; // Bind to loaded file
+                VF.updateWindowTitle();
+
+                if (VF.syncPrefsUI) VF.syncPrefsUI();
+                $('#rng-brush').val(S.cfg.brushSize || 4);
+                $('#v-brush').val(S.cfg.brushSize || 4);
+
+                VF.restoreSnapshot(JSON.stringify(state.layers));
+                VF.fitCanvas();
+                VF.resetView();
+
+                var name = filePath.replace(/\\/g, '/').split('/').pop();
+                VF.toast('Loaded: ' + name);
+            });
+        }).catch(function (err) {
+            if (err) {
+                VF.toast('Error loading project');
+                console.error(err);
+            }
+        });
+    });
 
 })();

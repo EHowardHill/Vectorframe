@@ -1,14 +1,17 @@
 final = ""
 
-base = "/mnt/c/Users/ethan/Documents/GitHub/Vectorframe/"
+# base = "/mnt/c/Users/ethan/Documents/GitHub/Vectorframe/"
+base = "./"
 
 file_list = [
-    base + "README.md",
-    base + "src-tauri/capabilities/default.json",
-    base + "src-tauri/src/lib.rs",
-    base + "src-tauri/Cargo.toml",
-    base + "src-tauri/tauri.conf.json",
+    # base + "README.md",
+    # base + "src-tauri/capabilities/default.json",
+    # base + "src-tauri/src/lib.rs",
+    # base + "src-tauri/Cargo.toml",
+    # base + "src-tauri/tauri.conf.json",
     base + "src/style.css",
+    # base + "src/style-about.css",
+    base + "src/style-layer-settings.css",
     base + "src/index.html",
     base + "src/js/01-state.js",
     base + "src/js/02-brush-textures.js",
@@ -30,11 +33,19 @@ file_list = [
     base + "src/js/18-export.js",
     base + "src/js/19-import.js",
     base + "src/js/20-project-io.js",
-    base + "src/js/21-preferences.js",
+    base + "src/js/21-project.js",
     base + "src/js/22-ui-bindings.js",
     base + "src/js/23-keyboard.js",
     base + "src/js/24-init.js",
     base + "src/js/25-audio.js",
+    base + "src/js/26-export-mp4.js",
+    base + "src/js/27-resize-panels.js",
+    base + "src/js/28-layer-settings.js",
+    base + "src/js/29-workspace.js",
+    base + "src/js/30-selection-sync.js",
+    base + "src/js/31-about.js",
+    base + "src/js/32-export-advanced.js",
+    base + "src/js/33-tools-advanced.js",
 ]
 
 """

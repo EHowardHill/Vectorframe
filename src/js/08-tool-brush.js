@@ -105,6 +105,7 @@
     tBrush.onMouseDown = function (e) {
         var P = getP();
         if (VF.isPanInput(e.event)) return;
+        if (VF.isLocked && VF.isLocked()) { VF.toast('Layer is locked'); return; }
         if (S.tl.playing) VF.togglePlay();
         if (S.tool !== 'brush') return;
         var l = VF.AL(); if (!l || l.type !== 'vector') return;
@@ -116,8 +117,6 @@
         VF.selSegments = [];
         VF.clearHandles();
 
-        /* ── Draw on the active CONTENT layer, not fgLayer,
-           so the stroke respects the layer's z-order. ── */
         pl.activate();
 
         drawing = true;
@@ -171,9 +170,6 @@
         }
     };
 
-    /* ═══════════════════════════════════════════════════
-       MOUSE DRAG
-       ═══════════════════════════════════════════════════ */
     tBrush.onMouseDrag = function (e) {
         var P = getP();
         if (!drawing) return;
@@ -220,9 +216,6 @@
         }
     };
 
-    /* ═══════════════════════════════════════════════════
-       MOUSE UP — final commit, then auto-select result
-       ═══════════════════════════════════════════════════ */
     tBrush.onMouseUp = function (e) {
         if (!drawing) return;
         drawing = false;
@@ -233,12 +226,8 @@
         clearTexPreview();
         if (pressureGuidePath) { pressureGuidePath.remove(); pressureGuidePath = null; }
 
-        /* Items committed this stroke — will be auto-selected */
         var committed = [];
 
-        /* ─────────────────────────────────────────────
-           PRESSURE MODE
-           ───────────────────────────────────────────── */
         if (S.cfg.pressure && pressureGroup) {
             if (usingTex && pressurePoints && pressurePoints.length > 0) {
                 var texCol = S.cfg.strokeCol;
@@ -263,16 +252,12 @@
                 );
                 if (texGroup && pl) { pl.addChild(texGroup); committed.push(texGroup); }
             } else {
-                /* Non-texture pressure stroke: already on pl */
                 committed.push(pressureGroup);
             }
             VF.saveFrame(); VF.uiTimeline();
             pressureGroup = null;
             pressurePoints = [];
 
-            /* ─────────────────────────────────────────────
-               NORMAL (NON-PRESSURE) MODE
-               ───────────────────────────────────────────── */
         } else if (curPath) {
             curPath.visible = true;
             curPath.opacity = 1;
@@ -305,14 +290,12 @@
                     curPath.remove();
                 }
             } else {
-                /* Non-texture: curPath is already on pl */
                 committed.push(curPath);
             }
             VF.saveFrame(); VF.uiTimeline();
             curPath = null;
         }
 
-        /* ── Auto-select committed items ── */
         VF.selSegments = [];
         VF.clearHandles();
         committed.forEach(function (item) {

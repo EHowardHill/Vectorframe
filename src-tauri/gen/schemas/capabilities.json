@@ -1,1 +1,1 @@
-{"default":{"identifier":"default","description":"Capability for VectorFrame","local":true,"windows":["main"],"permissions":["core:default","dialog:default","dialog:allow-ask","dialog:allow-save"]}}
+{"default":{"identifier":"default","description":"Capability for VectorFrame","local":true,"windows":["main"],"permissions":["core:default","dialog:default","dialog:allow-ask","dialog:allow-save","dialog:allow-open"]}}

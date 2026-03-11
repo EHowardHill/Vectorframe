@@ -14,11 +14,19 @@
     $('#tgl-stroke').on('click', function () {
         S.cfg.autoStroke = !S.cfg.autoStroke;
         $(this).toggleClass('on', S.cfg.autoStroke);
+        /* ── Selection-aware ── */
+        if (VF.hasSelection && VF.hasSelection()) {
+            VF.applyPropertyToSelection('enableStroke', S.cfg.autoStroke);
+        }
     });
     $('#tgl-fill').on('click', function () {
         S.cfg.autoFill = !S.cfg.autoFill;
         $(this).toggleClass('on', S.cfg.autoFill);
         if (S.cfg.autoFill) { S.cfg.autoStroke = true; $('#tgl-stroke').addClass('on'); }
+        /* ── Selection-aware ── */
+        if (VF.hasSelection && VF.hasSelection()) {
+            VF.applyPropertyToSelection('enableFill', S.cfg.autoFill);
+        }
     });
     $('#tgl-onion').on('click', function () {
         S.cfg.onion = !S.cfg.onion;
@@ -26,37 +34,104 @@
         VF.render();
     });
 
-    // Brush Size & Smooth Bindings
+    // Grain Bindings
+    $('#tgl-grain').on('click', function () {
+        S.cfg.grain = !S.cfg.grain;
+        $(this).toggleClass('on', S.cfg.grain);
+        VF.render();
+    });
+    $('#rng-grain').on('input', function () {
+        S.cfg.grainAmt = +$(this).val();
+        $('#v-grain').val(this.value);
+        VF.render();
+    });
+    $('#v-grain').on('change input', function () {
+        var val = Math.max(1, Math.min(100, +$(this).val() || 1));
+        S.cfg.grainAmt = val;
+        $('#rng-grain').val(val);
+        VF.render();
+    });
+
+    // ── Brush Size (Selection-aware) ──
+    $('#rng-brush').on('input', function () {
+        S.cfg.brushSize = +$(this).val();
+        $('#v-brush').val(this.value);
+        if (VF.hasSelection && VF.hasSelection()) {
+            VF.applyPropertyToSelection('brushSize', S.cfg.brushSize);
+        }
+    });
+    $('#v-brush').on('change input', function () {
+        var val = Math.max(1, Math.min(60, +$(this).val() || 1));
+        S.cfg.brushSize = val; $('#rng-brush').val(val);
+        if (VF.hasSelection && VF.hasSelection()) {
+            VF.applyPropertyToSelection('brushSize', val);
+        }
+    });
+
+    // Smooth Bindings (new-stroke only — no selection apply)
     $('#rng-smooth').on('input', function () { S.cfg.smooth = +$(this).val(); $('#v-smooth').val(this.value); });
     $('#v-smooth').on('change input', function () {
         var val = Math.max(1, Math.min(5, +$(this).val() || 1));
         S.cfg.smooth = val; $('#rng-smooth').val(val);
     });
 
-    $('#rng-brush').on('input', function () { S.cfg.brushSize = +$(this).val(); $('#v-brush').val(this.value); });
-    $('#v-brush').on('change input', function () {
-        var val = Math.max(1, Math.min(60, +$(this).val() || 1));
-        S.cfg.brushSize = val; $('#rng-brush').val(val);
-    });
-
     // Layer Opacity Bindings
     $('#rng-opacity').on('input', function () {
         var l = VF.AL(); if (!l) return;
         l.opacity = +this.value / 100;
-        var pl = VF.pLayers[l.id]; if (pl) pl.opacity = l.opacity;
+        var pl = VF.pLayers[l.id];
+        if (pl) {
+            if (l.type === 'image') {
+                pl.opacity = 1;
+                pl.children.forEach(function (c) { c.opacity = l.opacity; });
+            } else {
+                pl.opacity = l.opacity;
+            }
+        }
         $('#v-opacity').val(this.value);
     });
+
     $('#v-opacity').on('change input', function () {
         var l = VF.AL(); if (!l) return;
         var val = Math.max(0, Math.min(100, +$(this).val() || 0));
         l.opacity = val / 100;
-        var pl = VF.pLayers[l.id]; if (pl) pl.opacity = l.opacity;
+        var pl = VF.pLayers[l.id];
+        if (pl) {
+            if (l.type === 'image') {
+                pl.opacity = 1;
+                pl.children.forEach(function (c) { c.opacity = l.opacity; });
+            } else {
+                pl.opacity = l.opacity;
+            }
+        }
         $('#rng-opacity').val(val);
     });
 
-    $('#clr-stroke').on('input', function () { S.cfg.strokeCol = this.value; $('#sw-stroke').css('background', this.value); });
-    $('#clr-fill').on('input', function () { S.cfg.fillCol = this.value; $('#sw-fill').css('background', this.value); });
-    $('#sel-tex').on('change', function () { S.cfg.tex = this.value; });
+    // ── Stroke Color (Selection-aware) ──
+    $('#clr-stroke').on('input', function () {
+        S.cfg.strokeCol = this.value;
+        $('#sw-stroke').css('background', this.value);
+        if (VF.hasSelection && VF.hasSelection()) {
+            VF.applyPropertyToSelection('strokeColor', this.value);
+        }
+    });
+
+    // ── Fill Color (Selection-aware) ──
+    $('#clr-fill').on('input', function () {
+        S.cfg.fillCol = this.value;
+        $('#sw-fill').css('background', this.value);
+        if (VF.hasSelection && VF.hasSelection()) {
+            VF.applyPropertyToSelection('fillColor', this.value);
+        }
+    });
+
+    // ── Texture (Selection-aware) ──
+    $('#sel-tex').on('change', function () {
+        S.cfg.tex = this.value;
+        if (VF.hasSelection && VF.hasSelection()) {
+            VF.applyPropertyToSelection('texture', this.value);
+        }
+    });
 
     function pickScreenColor(targetInputId) {
         if (!window.EyeDropper) {
@@ -96,16 +171,6 @@
     $('#btn-next').on('click', function () { VF.goFrame(S.tl.frame + 1); });
     $('#btn-prev').on('click', function () { VF.goFrame(S.tl.frame - 1); });
 
-    $('#in-endframe').on('change', function () {
-        S.tl.max = Math.max(1, +this.value || 24);
-        if (S.tl.frame >= S.tl.max) { S.tl.frame = S.tl.max - 1; VF.render(); }
-        VF.uiTimeline();
-    });
-    $('#in-fps').on('change', function () {
-        S.tl.fps = Math.max(1, +this.value || 12);
-        if (S.tl.playing) { VF.togglePlay(); VF.togglePlay(); }
-    });
-
     $('#btn-newlyr').on('click', function () { VF.addLayer(); VF.render(); });
     $('#btn-duplyr').on('click', function () { VF.dupLayer(S.activeId); });
     $('#btn-dellyr').on('click', function () { VF.delLayer(S.activeId); });
@@ -117,22 +182,56 @@
         VF.saveHistory();
         var l = VF.AL(); if (!l) return;
 
+        // 1. Save current frame and get the artwork we want to duplicate
+        VF.saveFrame();
         var res = VF.getResolvedFrame(l, S.tl.frame);
-        if (res && res.keyFrame !== S.tl.frame) {
-            l.frames[S.tl.frame] = JSON.parse(JSON.stringify(res.data));
-        } else if (!res) {
-            l.frames[S.tl.frame] = [];
+        var dataToCopy = res && res.data ? JSON.parse(JSON.stringify(res.data)) : [];
+
+        VF.selSegments = [];
+        VF.clearHandles();
+
+        // 2. Advance the frame (extend the project timeline if we are at the very end)
+        if (S.tl.frame >= S.tl.max - 1) {
+            S.tl.max++;
+            $('#pref-end').val(S.tl.max);
+            $('#in-endframe').val(S.tl.max);
         }
-        VF.render(); VF.uiTimeline();
+        S.tl.frame++;
+
+        // 3. Assign the duplicated data to the new frame
+        l.frames[S.tl.frame] = dataToCopy;
+
+        // 4. Rerender the canvas and timeline
+        VF.render();
+        VF.uiTimeline();
     });
 
     // ◇ Blank Keyframe
     $('#btn-add-blank').on('click', function () {
         VF.saveHistory();
         var l = VF.AL(); if (!l) return;
+
+        // 1. Save the current frame's drawing data before moving the playhead
+        VF.saveFrame();
+        VF.selSegments = [];
+        VF.clearHandles();
+
+        // 2. Advance the frame (extend the project timeline if we are at the very end)
+        if (S.tl.frame >= S.tl.max - 1) {
+            S.tl.max++;
+            // Keep the UI inputs in sync with the new max
+            $('#pref-end').val(S.tl.max);
+            $('#in-endframe').val(S.tl.max);
+        }
+        S.tl.frame++;
+
+        // 3. Create the empty keyframe at the new position
         l.frames[S.tl.frame] = [];
         if (VF.pLayers[l.id]) VF.pLayers[l.id].removeChildren();
-        VF.render(); VF.uiTimeline();
+
+        // 4. Rerender the canvas and timeline
+        VF.render();
+        VF.uiTimeline();
     });
 
     // × Delete Keyframe
@@ -180,7 +279,6 @@
 
         $('#onion-ribbon-list').html(h);
 
-        /* Bind events using closest() for reliable index lookup */
         $('.on-rel').on('change', function () {
             S.onions[$(this).closest('.onion-rule-row').data('idx')].rel = $(this).val() === 'true';
             VF.render();
@@ -207,7 +305,6 @@
         });
     }
 
-    /* Expose for use by init / project-load */
     VF.renderOnionUI = renderOnionUI;
 
     $('#btn-add-onion').on('click', function () {
@@ -216,7 +313,6 @@
         VF.render();
     });
 
-    /* Initial render of onion rules into the ribbon */
     renderOnionUI();
 
     // Ribbon Tab Switching

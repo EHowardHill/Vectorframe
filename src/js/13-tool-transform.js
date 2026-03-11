@@ -58,7 +58,7 @@
     };
 
     tXform.onMouseDrag = function (e) {
-        if (e.event.buttons === 4 || e.event.button === 1) return;
+        if (VF.isPanInput(e.event)) return;
         var pl = VF.pLayers[S.activeId]; if (!pl || pl.children.length === 0) return;
 
         if (!tXformSaved) {

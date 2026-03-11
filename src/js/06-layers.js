@@ -13,7 +13,20 @@
         var l = {
             id: id, name: name || ('Layer ' + id), type: type || 'vector',
             vis: true, opacity: 1, z: maxZ + 1, frames: {},
-            imgData: null, cache: {}
+            imgData: null, cache: {},
+            /* ── Layer settings ── */
+            blendMode: 'normal',
+            locked: false,
+            reference: false,
+            colorTag: 'none',
+            wobble: {
+                enabled: false,
+                offset: 3,
+                scale: 1.0,
+                stroke: true,
+                fill: true,
+                perFrame: true
+            }
         };
         S.layers.push(l);
         S.activeId = id;
@@ -42,6 +55,14 @@
         }
         dup.opacity = src.opacity;
         dup.imgData = src.imgData;
+        /* ── Copy layer settings ── */
+        dup.blendMode = src.blendMode || 'normal';
+        dup.locked = false; /* Don't copy lock */
+        dup.reference = src.reference || false;
+        dup.colorTag = src.colorTag || 'none';
+        dup.wobble = src.wobble
+            ? JSON.parse(JSON.stringify(src.wobble))
+            : { enabled: false, offset: 3, scale: 1.0, stroke: true, fill: true, perFrame: true };
         VF.render(); VF.uiTimeline();
     };
 

@@ -28,12 +28,48 @@
     var bgLayer = new P.Layer(); bgLayer.name = 'SystemBackground';
     var onionLayerBg = new P.Layer(); onionLayerBg.name = 'OnionBackground';
     var onionLayerFg = new P.Layer(); onionLayerFg.name = 'OnionForeground';
+    var fxLayer = new P.Layer(); fxLayer.name = 'SystemFX';             // NEW
     var fgLayer = new P.Layer(); fgLayer.name = 'SystemForeground';
 
     VF.bgLayer = bgLayer;
     VF.onionLayerBg = onionLayerBg;
     VF.onionLayerFg = onionLayerFg;
+    VF.fxLayer = fxLayer;
     VF.fgLayer = fgLayer;
+
+    // GENERATE STATIC NOISE CANVAS
+    var noiseSize = 1024; // Increased base size for crispness
+    var noiseCvs = document.createElement('canvas');
+    noiseCvs.width = noiseSize; noiseCvs.height = noiseSize;
+    var nCtx = noiseCvs.getContext('2d');
+    var nData = nCtx.createImageData(noiseSize, noiseSize);
+    var d = nData.data;
+    for (var i = 0; i < d.length; i += 4) {
+        var val = Math.random() < 0.5 ? 0 : 255;
+        d[i] = val; d[i + 1] = val; d[i + 2] = val;
+        d[i + 3] = Math.random() * 255;
+    }
+    nCtx.putImageData(nData, 0, 0);
+
+    var grainRaster = new P.Raster({ canvas: noiseCvs });
+    grainRaster.blendMode = 'normal';
+
+    // NEW: Create a clipping mask strictly bound to the canvas dimensions
+    var grainClip = new P.Path.Rectangle({
+        point: [0, 0],
+        size: [S.canvas.w, S.canvas.h]
+    });
+
+    // In Paper.js, clipped=true uses the first child (grainClip) as the mask
+    var grainGroup = new P.Group([grainClip, grainRaster]);
+    grainGroup.clipped = true;
+    grainGroup.visible = false;
+
+    fxLayer.addChild(grainGroup);
+
+    VF.grainRaster = grainRaster;
+    VF.grainClip = grainClip;       // Tracked so we can update it on resize
+    VF.grainGroup = grainGroup;     // Tracked so we can toggle visibility
 
     var borderRect = null;
     var borderOutline = null;
@@ -43,9 +79,14 @@
         if (borderOutline) borderOutline.remove();
 
         bgLayer.activate();
+
+        // Use workspace preference if available, fallback to white
+        var bgColor = (VF.wsPrefs && VF.wsPrefs.canvasBgTransparent) ? null :
+            (VF.wsPrefs ? VF.wsPrefs.canvasBgColor : '#ffffff');
+
         borderRect = new P.Path.Rectangle({
             point: [0, 0], size: [S.canvas.w, S.canvas.h],
-            fillColor: '#fff'
+            fillColor: bgColor
         });
         bgLayer.sendToBack();
 

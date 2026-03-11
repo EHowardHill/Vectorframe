@@ -9,6 +9,7 @@
         "core:default",
         "dialog:default",
         "dialog:allow-ask",
-        "dialog:allow-save"
+        "dialog:allow-save",
+        "dialog:allow-open"
     ]
 }

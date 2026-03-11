@@ -1,20 +1,37 @@
 (function () {
     "use strict";
 
-    VF.importImg = function () { $('#file-import').trigger('click'); };
+    VF.importImg = function () {
+        var invoke = window.__TAURI__.core.invoke;
+        var open = window.__TAURI__.dialog.open;
 
-    $('#file-import').on('change', function (e) {
-        var f = e.target.files[0]; if (!f) return;
-        var rd = new FileReader();
-        rd.onload = function (ev) {
-            var l = VF.addLayer(f.name.replace(/\.\w+$/, ''), 'image');
-            l.imgData = ev.target.result;
-            l.frames[0] = [];
-            VF.render();
-            VF.uiTimeline();
-        };
-        rd.readAsDataURL(f);
-        $(this).val('');
-    });
+        open({
+            title: 'Import Image',
+            multiple: false,
+            filters: [{
+                name: 'Images',
+                extensions: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg']
+            }]
+        }).then(function (filePath) {
+            if (!filePath) return; // User cancelled
+
+            // Read the image file via Rust backend and get a data URL
+            invoke('read_image_file', { path: filePath }).then(function (dataUrl) {
+                // Extract a friendly name from the path
+                var name = filePath.replace(/\\/g, '/').split('/').pop().replace(/\.\w+$/, '');
+
+                var l = VF.addLayer(name, 'image');
+                l.imgData = dataUrl;
+                l.frames[0] = [];
+                VF.render();
+                VF.uiTimeline();
+            }).catch(function (err) {
+                VF.toast('Failed to import image: ' + err);
+                console.error('Image import error:', err);
+            });
+        }).catch(function (err) {
+            console.error('Dialog error:', err);
+        });
+    };
 
 })();

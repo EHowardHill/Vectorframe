@@ -148,14 +148,12 @@
         gizmoBounds = b;
         var z = VF.view.zoom;
 
-        /* Bounding box */
         pushG(new P.Path.Rectangle({
             point: b.topLeft, size: b.size,
             strokeColor: '#4a6fff', strokeWidth: 1 / z,
             dashArray: [5 / z, 3 / z]
         }), null, null);
 
-        /* Rotation handle */
         var rotDist = 24 / z;
         var rotTop = new P.Point(b.center.x, b.top);
         var rotPos = new P.Point(b.center.x, b.top - rotDist);
@@ -165,14 +163,12 @@
             fillColor: '#4a6fff', strokeColor: '#fff', strokeWidth: 1.2 / z
         }), 'rotate', 'crosshair');
 
-        /* Corner handles */
         var HS = 7;
         makeSquare(b.topLeft, HS, 'scale-tl', 'nwse-resize', b.bottomRight);
         makeSquare(b.topRight, HS, 'scale-tr', 'nesw-resize', b.bottomLeft);
         makeSquare(b.bottomLeft, HS, 'scale-bl', 'nesw-resize', b.topRight);
         makeSquare(b.bottomRight, HS, 'scale-br', 'nwse-resize', b.topLeft);
 
-        /* Edge midpoint handles */
         if (b.width > 18 / z) {
             makeRect(b.topCenter, 9, 5, 'scale-t', 'ns-resize', b.bottomCenter);
             makeRect(b.bottomCenter, 9, 5, 'scale-b', 'ns-resize', b.topCenter);
@@ -182,7 +178,6 @@
             makeRect(b.rightCenter, 5, 9, 'scale-r', 'ew-resize', b.leftCenter);
         }
 
-        /* Center crosshair */
         var cs = 4 / z; var cx = b.center;
         pushG(new P.Path.Line({ from: [cx.x - cs, cx.y], to: [cx.x + cs, cx.y], strokeColor: '#ff9500', strokeWidth: 1.2 / z }), null, null);
         pushG(new P.Path.Line({ from: [cx.x, cx.y - cs], to: [cx.x, cx.y + cs], strokeColor: '#ff9500', strokeWidth: 1.2 / z }), null, null);
@@ -190,7 +185,7 @@
 
 
     /* ═══════════════════════════════════════════════════
-       VERTEX HANDLES  — node-mode point/Bézier editing
+       VERTEX HANDLES
        ═══════════════════════════════════════════════════ */
 
     function drawVertexHandles() {
@@ -198,7 +193,6 @@
         var z = VF.view.zoom;
 
         VF.selSegments.forEach(function (seg, i) {
-            /* Main point dot */
             var d = new P.Path.Circle({
                 center: seg.point, radius: 4.5 / z,
                 fillColor: '#4a6fff', strokeColor: '#fff', strokeWidth: 1 / z
@@ -206,7 +200,6 @@
             d._hIdx = i; d._hType = 'pt'; d._isH = true; d._seg = seg;
             VF.selHandles.push(d);
 
-            /* Handle-in */
             if (seg.handleIn.length > 0.1) {
                 var hpt = seg.point.add(seg.handleIn);
                 var line1 = new P.Path.Line({ from: seg.point, to: hpt, strokeColor: '#ff9500', strokeWidth: 1 / z });
@@ -219,7 +212,6 @@
                 VF.selHandles.push(hd);
             }
 
-            /* Handle-out */
             if (seg.handleOut.length > 0.1) {
                 var hpt2 = seg.point.add(seg.handleOut);
                 var line2 = new P.Path.Line({ from: seg.point, to: hpt2, strokeColor: '#34c759', strokeWidth: 1 / z });
@@ -233,7 +225,6 @@
             }
         });
 
-        /* Bounding rect around all selected nodes */
         if (VF.selSegments.length > 1) {
             var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
             VF.selSegments.forEach(function (seg) {
@@ -311,7 +302,7 @@
     }
 
     /* ═══════════════════════════════════════════════════
-       VERTEX HANDLE HIT TESTING  (vertex mode)
+       VERTEX HANDLE HIT TESTING
        ═══════════════════════════════════════════════════ */
 
     function hitVertexHandle(pt) {
@@ -444,6 +435,11 @@
         return t;
     }
 
+    /** Notify UI of new selection */
+    function notifySelectionChanged() {
+        if (VF.syncUIFromSelection) VF.syncUIFromSelection();
+    }
+
 
     /* ═══════════════════════════════════════════════════
        SELECT TOOL
@@ -452,13 +448,11 @@
     var tSelect = new (getP()).Tool(); tSelect.name = 'select';
     VF.tSelect = tSelect;
 
-    /* Double-click detection */
     var lastClickTime = 0;
     var lastClickPoint = null;
     var DBLCLICK_MS = 400;
     var DBLCLICK_DIST = 8;
 
-    /* Vertex-mode drag state */
     var vDragH = null;
     var vSaved = false;
 
@@ -483,20 +477,15 @@
         lastClickPoint = e.point.clone();
 
 
-        /* ═══════════════════════════════════════════════
-           VERTEX MODE
-           ═══════════════════════════════════════════════ */
+        /* ═══ VERTEX MODE ═══ */
         if (VF.selectMode === 'vertex') {
 
-            /* Hit a vertex handle? → drag it */
             var vh = hitVertexHandle(e.point);
             if (vh) { vDragH = vh; return; }
 
-            /* Hit a segment on the selected items? → add/replace selection */
             var hit = pl.hitTest(e.point, { segments: true, tolerance: 8 / VF.view.zoom });
             if (hit && hit.type === 'segment' && hit.segment && !hit.item._isH) {
                 if (e.event.shiftKey) {
-                    /* Toggle segment in selection */
                     var idx = VF.selSegments.indexOf(hit.segment);
                     if (idx >= 0) VF.selSegments.splice(idx, 1);
                     else VF.selSegments.push(hit.segment);
@@ -504,24 +493,19 @@
                     VF.selSegments = [hit.segment];
                 }
                 VF.showHandles();
+                notifySelectionChanged();
                 vDragH = hitVertexHandle(e.point);
                 return;
             }
 
-            /* Click on empty → exit vertex mode */
             VF.selectMode = 'object';
             VF.selSegments = [];
             VF.clearHandles();
-            /* Fall through to object-mode logic below so a click on
-               another item selects it immediately */
         }
 
 
-        /* ═══════════════════════════════════════════════
-           OBJECT MODE
-           ═══════════════════════════════════════════════ */
+        /* ═══ OBJECT MODE ═══ */
 
-        /* Double-click on a selected item → enter vertex mode */
         if (isDoubleClick && VF.selSegments.length > 0) {
             var hitDbl = pl.hitTest(e.point, { stroke: true, fill: true, segments: true, tolerance: 8 / VF.view.zoom });
             if (hitDbl && hitDbl.item && !hitDbl.item._isH && isItemSelected(hitDbl.item)) {
@@ -552,6 +536,7 @@
             } else {
                 selectItem(target, e.event.shiftKey);
                 VF.showHandles();
+                notifySelectionChanged();
                 gAction = 'translate-pending';
                 return;
             }
@@ -573,7 +558,7 @@
 
     /* ── MOUSE DRAG ── */
     tSelect.onMouseDrag = function (e) {
-        if (e.event.buttons === 4 || e.event.button === 1) return;
+        if (VF.isPanInput(e.event)) return;
         var P = getP();
 
         /* ═══ VERTEX MODE DRAG ═══ */
@@ -587,7 +572,6 @@
                 else if (vDragH._hType === 'hIn') seg.handleIn = seg.handleIn.add(e.delta);
                 else if (vDragH._hType === 'hOut') seg.handleOut = seg.handleOut.add(e.delta);
 
-                /* Track texture groups for rebuild */
                 var texGrp = seg.path && seg.path.parent;
                 if (texGrp && texGrp.data && texGrp.data.isTextureStroke) {
                     if (vDragH._hType === 'pt') VF.syncTextureGroup(texGrp, 'translate', e.delta);
@@ -605,7 +589,6 @@
         if (!gSaved) { VF.saveHistory(); gSaved = true; }
         gDragged = true;
 
-        /* Translate */
         if (gAction === 'translate-pending' || gAction === 'translate') {
             gAction = 'translate';
             applyTranslate(e.delta);
@@ -613,7 +596,6 @@
             return;
         }
 
-        /* Rotate */
         if (gAction === 'rotate') {
             var curAng = e.point.subtract(gCenter).angle;
             var totalAngle = curAng - gStartAng;
@@ -624,7 +606,6 @@
             return;
         }
 
-        /* Scale */
         if (gAction.indexOf('scale') === 0 && gOrigBounds && gAnchor) {
             var dir = gAction.replace('scale-', '');
             var origHandle = getOrigHandle(dir);
@@ -650,7 +631,6 @@
     tSelect.onMouseUp = function (e) {
         if (VF.isPanInput(e.event)) return;
 
-        /* Vertex mode */
         if (VF.selectMode === 'vertex') {
             if (vDragH) {
                 var pl = VF.pLayers[S.activeId];
@@ -663,7 +643,6 @@
             return;
         }
 
-        /* Object mode */
         if (gAction && gDragged && gAction !== 'translate-pending') {
             finishTransform();
         } else if (gAction === 'translate' && gDragged) {
@@ -738,6 +717,7 @@
         }
         lassoPath.remove(); lassoPath = null;
         VF.showHandles();
+        notifySelectionChanged();
     };
 
 })();

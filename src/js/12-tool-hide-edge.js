@@ -11,6 +11,7 @@
     tHideEdge.onMouseDown = function (e) {
         var P = getP();
         if (VF.isPanInput(e.event)) return;
+        if (VF.isLocked && VF.isLocked()) { VF.toast('Layer is locked'); return; }
         if (S.tool !== 'hide-edge') return;
         var pl = VF.pLayers[S.activeId]; if (!pl) return;
         var hit = pl.hitTest(e.point, { segments: true, tolerance: 12 / VF.view.zoom });

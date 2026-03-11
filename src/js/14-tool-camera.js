@@ -64,16 +64,17 @@
 
     $(window).on('pointerup', function (e) {
         var ev = e.originalEvent;
-        if (isMiddlePanning && (ev.button === 1 || ev.pointerType === 'pen')) {
+        // Ensure we catch the release of the right-click button
+        if (isMiddlePanning && (ev.button === 1 || ev.button === 2 || ev.pointerType === 'pen')) {
             isMiddlePanning = false;
             VF.setTool(S.tool);
         }
     });
 
     $(cvs).on('contextmenu', function (e) {
-        if (e.originalEvent && e.originalEvent.pointerType === 'pen') {
-            e.preventDefault();
-        }
+        // Always prevent the default browser context menu over the canvas 
+        // so it doesn't pop up after a right-click pan.
+        e.preventDefault();
     });
 
 })();

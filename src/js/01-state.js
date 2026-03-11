@@ -9,24 +9,29 @@
         layers: [],
         activeId: null,
         nextId: 1,
+        currentProjectPath: null,
         clip: null,
         cfg: {
             autoStroke: true,
             autoFill: false,
             brushSize: 4,
             smooth: 3,
-            strokeCol: '#1e1e24',
+            strokeCol: '#000000',
             fillCol: '#4a6fff',
             tex: 'none',
             onion: false,
             onionIsolate: false,
-            pressure: false
+            pressure: false,
+            grain: false,
+            grainAmt: 10
         },
         onions: [
             { rel: true, val: -1, op: 16, top: false },
             { rel: true, val: 1, op: 10, top: false }
         ],
         tool: 'brush',
+        audioData: null,
+        audioFilename: null
     };
 
     VF.AL = function () { return VF.S.layers.find(l => l.id === VF.S.activeId); };
@@ -82,7 +87,7 @@
     VF.smoothTol = function () { return [0, 0.5, 2, 5, 10, 22][VF.S.cfg.smooth] || 5; };
 
     VF.isPanInput = function (ev) {
-        return ev.button === 1 || (ev.pointerType === 'pen' && (ev.button === 2 || ev.button === 5));
+        return ev.button === 1 || ev.button === 2 || (ev.pointerType === 'pen' && ev.button === 5);
     };
 
     VF.toast = function (msg) {

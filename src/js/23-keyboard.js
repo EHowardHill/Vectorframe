@@ -259,6 +259,14 @@
             if (e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) VF.execRedo(); else VF.execUndo(); return; }
             if (e.key.toLowerCase() === 'y') { e.preventDefault(); VF.execRedo(); return; }
 
+            /* ── SAVE (Ctrl+S / Ctrl+Shift+S) ── */
+            if (e.key.toLowerCase() === 's') {
+                e.preventDefault();
+                if (e.shiftKey) VF.doSave('save-as');
+                else VF.doSave('save');
+                return;
+            }
+
             /* ── CUT (Ctrl+X) ── */
             if (e.key.toLowerCase() === 'x') {
                 e.preventDefault();
@@ -323,6 +331,8 @@
         else if (k === 'arrowright') { e.preventDefault(); VF.goFrame(S.tl.frame + 1); }
         else if (k === 'arrowleft') { e.preventDefault(); VF.goFrame(S.tl.frame - 1); }
         else if (k === 'enter') { e.preventDefault(); VF.togglePlay(); }
+        else if (k === 'f6') { e.preventDefault(); $('#btn-add-blank').click(); }
+        else if (k === 'f7') { e.preventDefault(); $('#btn-add-dup').click(); }
         else if (k === 'escape') {
             e.preventDefault();
             if (VF.selectMode === 'vertex') {

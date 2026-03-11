@@ -75,9 +75,11 @@
                 VF.render();       // Load items for this frame
                 VF.view.update();  // Force Paper.js to draw it
 
-                // Clear export canvas and paint a white background (video doesn't support alpha)
+                // Clear export canvas and paint background
                 ectx.clearRect(0, 0, ec.width, ec.height);
-                ectx.fillStyle = '#ffffff';
+                // Video doesn't support alpha. If canvas is transparent, force white. Otherwise use their chosen color.
+                var mp4Bg = (VF.wsPrefs && !VF.wsPrefs.canvasBgTransparent) ? VF.wsPrefs.canvasBgColor : '#ffffff';
+                ectx.fillStyle = mp4Bg;
                 ectx.fillRect(0, 0, ec.width, ec.height);
 
                 // Draw the Paper.js canvas onto our export canvas

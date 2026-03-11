@@ -39,12 +39,13 @@
 
     tEraser.onMouseDown = function (e) {
         if (VF.isPanInput(e.event)) return;
+        if (VF.isLocked && VF.isLocked()) { VF.toast('Layer is locked'); return; }
         tEraserSaved = false;
         if (S.tool === 'eraser') eraseAt(e.point);
     };
 
     tEraser.onMouseDrag = function (e) {
-        if (e.event.buttons === 4 || e.event.button === 1) return;
+        if (VF.isPanInput(e.event)) return;
         if (S.tool === 'eraser') eraseAt(e.point);
     };
 

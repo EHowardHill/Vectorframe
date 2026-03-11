@@ -34,7 +34,52 @@
     }
 
     /* ═══════════════════════════════════════════════════
-       LOAD AUDIO FILE
+       LOAD AUDIO FROM BASE64 DATA
+       ═══════════════════════════════════════════════════ */
+    function loadAudioFromBase64(base64Data, filename, silent) {
+        ensureCtx();
+
+        try {
+            // Bypass fetch() CSP issues by converting base64 directly to an ArrayBuffer
+            var binaryStr = window.atob(base64Data);
+            var len = binaryStr.length;
+            var bytes = new Uint8Array(len);
+            for (var i = 0; i < len; i++) {
+                bytes[i] = binaryStr.charCodeAt(i);
+            }
+
+            A.ctx.decodeAudioData(bytes.buffer)
+                .then(function (decoded) {
+                    A.buffer = decoded;
+                    A.filename = filename;
+
+                    // Tie audio data explicitly to project state
+                    S.audioData = base64Data;
+                    S.audioFilename = filename;
+
+                    if (!silent) VF.toast('Audio loaded: ' + filename);
+
+                    // Rebuild data AND render the waveform to the canvas
+                    VF.rebuildWaveform();
+
+                    VF.uiTimeline();
+                    updateAudioLabel();
+                })
+                .catch(function (err) {
+                    if (!silent) VF.toast('Failed to decode audio');
+                    console.error('Audio decode error:', err);
+                });
+        } catch (err) {
+            if (!silent) VF.toast('Failed to parse audio data');
+            console.error('Base64 parse error:', err);
+        }
+    }
+
+    // Expose for project loader
+    VF.loadAudioFromProject = loadAudioFromBase64;
+
+    /* ═══════════════════════════════════════════════════
+       LOAD AUDIO FILE (legacy — kept for compatibility)
        ═══════════════════════════════════════════════════ */
     VF.loadAudioFile = function (file) {
         ensureCtx();
@@ -89,32 +134,40 @@
     /* ═══════════════════════════════════════════════════
        REMOVE AUDIO
        ═══════════════════════════════════════════════════ */
-    VF.removeAudio = function () {
+    VF.removeAudio = function (silent) {
         stopAudio();
         A.buffer = null;
         A.filename = null;
         A.waveformData = null;
 
-        fetch('/api/remove-audio', { method: 'POST' }).catch(function () { });
+        // Sever audio from project state
+        S.audioData = null;
+        S.audioFilename = null;
 
+        // Force waveform empty generation and timeline UI refresh
+        VF.rebuildWaveform();
         VF.uiTimeline();
         updateAudioLabel();
-        VF.toast('Audio removed');
+
+        if (!silent) VF.toast('Audio removed');
     };
 
     /* ═══════════════════════════════════════════════════
        WAVEFORM DATA EXTRACTION
        ═══════════════════════════════════════════════════ */
+
     function buildWaveformData() {
         if (!A.buffer) { A.waveformData = null; return; }
 
-        var totalFrames = S.tl.max;
         var fps = S.tl.fps;
         var sampleRate = A.buffer.sampleRate;
         var channelData = A.buffer.getChannelData(0);
-        var peaks = new Float32Array(totalFrames);
 
-        for (var f = 0; f < totalFrames; f++) {
+        // Extract peaks for the ENTIRE duration of the audio file
+        var audioFrames = Math.ceil(A.buffer.duration * fps);
+        var peaks = new Float32Array(audioFrames);
+
+        for (var f = 0; f < audioFrames; f++) {
             var tStart = f / fps;
             var tEnd = (f + 1) / fps;
             var sStart = Math.floor(tStart * sampleRate);
@@ -131,12 +184,6 @@
         A.waveformData = peaks;
     }
 
-    /* Rebuild waveform data when fps/max changes */
-    VF.rebuildWaveform = function () {
-        buildWaveformData();
-        VF.renderAudioWaveform();
-    };
-
     /* ═══════════════════════════════════════════════════
        WAVEFORM CANVAS RENDERING
        ═══════════════════════════════════════════════════ */
@@ -144,20 +191,22 @@
         var canvas = document.getElementById('audio-waveform');
         if (!canvas) return;
 
-        var totalFrames = S.tl.max;
         var cellW = 18;
         var height = 24;
 
-        canvas.width = totalFrames * cellW;
+        // Ensure canvas width covers whichever is longer: the project or the audio
+        var audioFrames = A.waveformData ? A.waveformData.length : 0;
+        var displayFrames = Math.max(S.tl.max, audioFrames);
+
+        canvas.width = displayFrames * cellW;
         canvas.height = height;
-        canvas.style.width = (totalFrames * cellW) + 'px';
+        canvas.style.width = (displayFrames * cellW) + 'px';
         canvas.style.height = height + 'px';
 
         var ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         if (!A.waveformData || A.waveformData.length === 0) {
-            /* Draw a subtle "no audio" hint */
             ctx.fillStyle = 'rgba(128, 128, 128, 0.15)';
             ctx.fillRect(0, height / 2, canvas.width, 1);
             return;
@@ -166,7 +215,7 @@
         var midY = height / 2;
         var maxBarH = height / 2 - 1;
 
-        for (var f = 0; f < totalFrames; f++) {
+        for (var f = 0; f < displayFrames; f++) {
             var peak = f < A.waveformData.length ? A.waveformData[f] : 0;
             var barH = peak * maxBarH;
             if (barH < 0.5) barH = 0.5;
@@ -176,6 +225,9 @@
 
             if (isCurrent) {
                 ctx.fillStyle = 'rgba(74, 111, 255, 0.75)';
+            } else if (f >= S.tl.max) {
+                // Dimmer color for audio that goes past the animation end frame
+                ctx.fillStyle = peak > 0.6 ? 'rgba(150, 150, 150, 0.4)' : 'rgba(150, 150, 150, 0.2)';
             } else if (peak > 0.6) {
                 ctx.fillStyle = 'rgba(74, 111, 255, 0.45)';
             } else {
@@ -183,18 +235,35 @@
             }
 
             var barW = Math.max(2, cellW - 4);
-            ctx.fillRect(x + (cellW - barW) / 2, midY - barH, barW, barH * 2);
+            if (f < audioFrames) {
+                ctx.fillRect(x + (cellW - barW) / 2, midY - barH, barW, barH * 2);
+            }
         }
 
-        /* Subtle cell grid */
         ctx.strokeStyle = 'rgba(128, 128, 128, 0.06)';
         ctx.lineWidth = 0.5;
-        for (var i = 0; i <= totalFrames; i++) {
+        for (var i = 0; i <= displayFrames; i++) {
             ctx.beginPath();
             ctx.moveTo(i * cellW, 0);
             ctx.lineTo(i * cellW, height);
             ctx.stroke();
         }
+
+        // Draw a warning line at the project's actual End Frame 
+        if (audioFrames > S.tl.max) {
+            ctx.strokeStyle = 'rgba(218, 42, 0, 0.6)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(S.tl.max * cellW, 0);
+            ctx.lineTo(S.tl.max * cellW, height);
+            ctx.stroke();
+        }
+    };
+
+    /* Rebuild waveform data when fps/max changes */
+    VF.rebuildWaveform = function () {
+        buildWaveformData();
+        VF.renderAudioWaveform();
     };
 
     /* ═══════════════════════════════════════════════════
@@ -282,79 +351,53 @@
     };
 
     /* ═══════════════════════════════════════════════════
-       UPLOAD AUDIO TO SERVER (for project persistence)
-       ═══════════════════════════════════════════════════ */
-    VF.uploadAudioToServer = function (file) {
-        const { invoke } = window.__TAURI__.core;
-        return new Promise(function (resolve, reject) {
-            var reader = new FileReader();
-            reader.onload = function (e) {
-                // Strip the mime type header off the data URL to get raw base64
-                var base64Data = e.target.result.split(',')[1];
-
-                invoke('save_audio', { data: base64Data, filename: file.name })
-                    .then(function (safeName) {
-                        resolve({ success: true, filename: safeName });
-                    })
-                    .catch(function (err) {
-                        reject(err);
-                    });
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-        });
-    };
-
-
-    /* ═══════════════════════════════════════════════════
-       REMOVE AUDIO
-       ═══════════════════════════════════════════════════ */
-    VF.removeAudio = function () {
-        stopAudio();
-        A.buffer = null;
-        A.filename = null;
-        A.waveformData = null;
-
-        const { invoke } = window.__TAURI__.core;
-        invoke('remove_audio').catch(function (e) { console.error("Audio removal failed", e); });
-
-        VF.uiTimeline();
-        updateAudioLabel();
-        VF.toast('Audio removed');
-    };
-
-
-    /* ═══════════════════════════════════════════════════
        UI EVENT BINDINGS
        ═══════════════════════════════════════════════════ */
     $(document).ready(function () {
 
-        /* Audio file input change */
-        $('#audio-import').on('change', function (e) {
-            var file = e.target.files[0];
-            if (!file) return;
-
-            VF.loadAudioFile(file);
-
-            VF.uploadAudioToServer(file).then(function (d) {
-                if (d.success) console.log('Audio saved locally:', d.filename);
-            }).catch(function (err) {
-                console.error('Audio upload failed:', err);
-            });
-
-            $(this).val('');
-        });
-
-        /* Load audio button */
+        /* Load audio button — opens native file dialog */
         $('#btn-load-audio').on('click', function () {
-            $('#audio-import').trigger('click');
+            var invoke = window.__TAURI__.core.invoke;
+            var open = window.__TAURI__.dialog.open;
+
+            open({
+                title: 'Load Audio Track',
+                multiple: false,
+                filters: [{
+                    name: 'Audio Files',
+                    extensions: ['wav', 'mp3', 'ogg', 'flac', 'aac', 'm4a', 'webm']
+                }]
+            }).then(function (filePath) {
+                if (!filePath) return; // User cancelled
+
+                // Read the file via Rust backend
+                invoke('read_file_base64', { path: filePath }).then(function (result) {
+                    var base64Data = result.data;
+                    var filename = result.filename;
+
+                    // Decode the audio for playback
+                    loadAudioFromBase64(base64Data, filename, false);
+
+                }).catch(function (err) {
+                    VF.toast('Failed to read audio file: ' + err);
+                    console.error('Audio read error:', err);
+                });
+            }).catch(function (err) {
+                console.error('Dialog error:', err);
+            });
         });
 
         /* Remove audio button */
         $('#btn-remove-audio').on('click', function () {
-            if (A.buffer && confirm('Remove audio track?')) {
-                VF.removeAudio();
-            }
+            if (!A.buffer) return;
+
+            var ask = window.__TAURI__.dialog.ask;
+            ask('Remove audio track?', {
+                title: 'Remove Audio',
+                kind: 'warning'
+            }).then(function (confirmed) {
+                if (confirmed) VF.removeAudio(false);
+            });
         });
 
         /* Volume slider */
@@ -364,42 +407,14 @@
         });
 
         /* Hook into FPS changes to rebuild waveform */
-        $('#in-fps').on('change.audio', function () {
+        $('#pref-fps').on('change.audio', function () {
             if (A.buffer) VF.rebuildWaveform();
         });
 
         /* Hook into end-frame changes to rebuild waveform */
-        $('#in-endframe').on('change.audio', function () {
+        $('#pref-end').on('change.audio', function () {
             if (A.buffer) VF.rebuildWaveform();
         });
-
-        /* Try to load audio from backend on startup */
-        if (window.__TAURI__) {
-            const { invoke } = window.__TAURI__.core;
-
-            invoke('get_current_audio').then(function (audioInfo) {
-                if (audioInfo && audioInfo.filename && audioInfo.data) {
-                    // Reconstruct Data URL to easily extract an ArrayBuffer using native fetch
-                    var dataUrl = 'data:audio/mp3;base64,' + audioInfo.data;
-
-                    fetch(dataUrl)
-                        .then(function (res) { return res.arrayBuffer(); })
-                        .then(function (buf) { return ensureCtx().decodeAudioData(buf); })
-                        .then(function (decoded) {
-                            A.buffer = decoded;
-                            A.filename = audioInfo.filename;
-                            if (typeof buildWaveformData !== 'undefined') buildWaveformData();
-                            VF.uiTimeline();
-                            updateAudioLabel();
-                        })
-                        .catch(function (err) {
-                            console.error("Error decoding loaded audio:", err);
-                        });
-                }
-            }).catch(function (err) {
-                console.log("No current audio found", err);
-            });
-        }
     });
 
 })();

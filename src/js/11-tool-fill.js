@@ -9,6 +9,7 @@
 
     tFill.onMouseDown = function (e) {
         if (VF.isPanInput(e.event)) return;
+        if (VF.isLocked && VF.isLocked()) { VF.toast('Layer is locked'); return; }
         if (S.tool !== 'fill') return;
 
         var pl = VF.pLayers[S.activeId]; if (!pl) return;
