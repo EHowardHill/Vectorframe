@@ -5,10 +5,13 @@ base = "./"
 
 file_list = [
     # base + "README.md",
-    # base + "src-tauri/capabilities/default.json",
-    # base + "src-tauri/src/lib.rs",
-    # base + "src-tauri/Cargo.toml",
-    # base + "src-tauri/tauri.conf.json",
+    base + "src-tauri/capabilities/default.json",
+    base + "src-tauri/src/lib.rs",
+    base + "src-tauri/Cargo.toml",
+    base + "src-tauri/tauri.conf.json"
+]
+
+"""
     base + "src/style.css",
     base + "src/style-about.css",
     base + "src/style-layer-settings.css",
@@ -46,10 +49,6 @@ file_list = [
     base + "src/js/31-about.js",
     base + "src/js/32-export-advanced.js",
     base + "src/js/33-tools-advanced.js",
-]
-
-"""
-
 """
 
 for file in file_list:
