@@ -1,0 +1,460 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0C4275DC9CA10119DA178B5D /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AFCC9CC9EF88274C08C72D95 /* WebKit.framework */; };
+		1D56748E39D4270C19B3215B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2861A99EA4ECB9A43EBB059F /* Assets.xcassets */; };
+		20405C44B2B7FEBC01CAB46D /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C3516B3C6333955339D6A0B3 /* UIKit.framework */; };
+		27E46A8656BDE89975012A7B /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0334A9EA77606095031E01C7 /* QuartzCore.framework */; };
+		31BEE0FFEAFAC1BD7F28B8DA /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 004245F3E82DE562B2E6F8B4 /* CoreGraphics.framework */; };
+		4FAF8B0832CA8FAC4757A2A9 /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 695FC25AAB7ED1208FEB77C3 /* main.mm */; };
+		B2D99F15817A4B9FF8EF4F68 /* libapp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 1CE80BD2CA18FD3FA68E1427 /* libapp.a */; };
+		B54E7A139222ED744D903038 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 751422202FD22E09BF7C8BAD /* Metal.framework */; };
+		BE6E82CCA2CE90E0D13040C8 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1162570EAE563C6A3856BC8 /* Security.framework */; };
+		CCCC390F614C0C672E28CE10 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A42A81DD54695D16CDE76D48 /* MetalKit.framework */; };
+		E26B9D8DCF9DF3ED64EEA5ED /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 500B2488F5D13DF828108577 /* assets */; };
+		FCBA7D28B2953BB97788548D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 28911B723005981DDA26B0DB /* LaunchScreen.storyboard */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		004245F3E82DE562B2E6F8B4 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
+		0334A9EA77606095031E01C7 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
+		1CE80BD2CA18FD3FA68E1427 /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
+		2861A99EA4ECB9A43EBB059F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		28911B723005981DDA26B0DB /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
+		500B2488F5D13DF828108577 /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; path = assets; sourceTree = SOURCE_ROOT; };
+		65BEA01177D1F9D571DCE42F /* pompedin_iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = pompedin_iOS.entitlements; sourceTree = "<group>"; };
+		695FC25AAB7ED1208FEB77C3 /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
+		751422202FD22E09BF7C8BAD /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		7EEC140FF706943D9DF427B1 /* main.rs */ = {isa = PBXFileReference; path = main.rs; sourceTree = "<group>"; };
+		96F7E8832618191449D76F4D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		A42A81DD54695D16CDE76D48 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
+		AFCC9CC9EF88274C08C72D95 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
+		C3516B3C6333955339D6A0B3 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
+		CC0CC69C61290F992373E4C2 /* bindings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bindings.h; sourceTree = "<group>"; };
+		E1162570EAE563C6A3856BC8 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		E355EB16E44A515185D9A800 /* lib.rs */ = {isa = PBXFileReference; path = lib.rs; sourceTree = "<group>"; };
+		F2359A0C327D07F19552884C /* pompedin_iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = pompedin_iOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		16CEE4FF4F2DBB2B1DBFC34A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B2D99F15817A4B9FF8EF4F68 /* libapp.a in Frameworks */,
+				31BEE0FFEAFAC1BD7F28B8DA /* CoreGraphics.framework in Frameworks */,
+				B54E7A139222ED744D903038 /* Metal.framework in Frameworks */,
+				CCCC390F614C0C672E28CE10 /* MetalKit.framework in Frameworks */,
+				27E46A8656BDE89975012A7B /* QuartzCore.framework in Frameworks */,
+				BE6E82CCA2CE90E0D13040C8 /* Security.framework in Frameworks */,
+				20405C44B2B7FEBC01CAB46D /* UIKit.framework in Frameworks */,
+				0C4275DC9CA10119DA178B5D /* WebKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		16DE58346977FC1E6516438A /* bindings */ = {
+			isa = PBXGroup;
+			children = (
+				CC0CC69C61290F992373E4C2 /* bindings.h */,
+			);
+			path = bindings;
+			sourceTree = "<group>";
+		};
+		2457A676083D38D31DD0DEEA /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				F271350C4E260232426580E9 /* pompedin */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		89D1AF6E1557B54D92FD8D5B /* src */ = {
+			isa = PBXGroup;
+			children = (
+				E355EB16E44A515185D9A800 /* lib.rs */,
+				7EEC140FF706943D9DF427B1 /* main.rs */,
+			);
+			name = src;
+			path = ../../src;
+			sourceTree = "<group>";
+		};
+		D2E30C76A807145682F8E73B = {
+			isa = PBXGroup;
+			children = (
+				500B2488F5D13DF828108577 /* assets */,
+				2861A99EA4ECB9A43EBB059F /* Assets.xcassets */,
+				28911B723005981DDA26B0DB /* LaunchScreen.storyboard */,
+				E536901743F3979458E5F0AF /* Externals */,
+				D49465F926C27876FA71FCAA /* pompedin_iOS */,
+				2457A676083D38D31DD0DEEA /* Sources */,
+				89D1AF6E1557B54D92FD8D5B /* src */,
+				E689E2F8E0E5BE4504185335 /* Frameworks */,
+				F04388707EF80BB261AFC9A2 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		D49465F926C27876FA71FCAA /* pompedin_iOS */ = {
+			isa = PBXGroup;
+			children = (
+				96F7E8832618191449D76F4D /* Info.plist */,
+				65BEA01177D1F9D571DCE42F /* pompedin_iOS.entitlements */,
+			);
+			path = pompedin_iOS;
+			sourceTree = "<group>";
+		};
+		E536901743F3979458E5F0AF /* Externals */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Externals;
+			sourceTree = "<group>";
+		};
+		E689E2F8E0E5BE4504185335 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				004245F3E82DE562B2E6F8B4 /* CoreGraphics.framework */,
+				1CE80BD2CA18FD3FA68E1427 /* libapp.a */,
+				751422202FD22E09BF7C8BAD /* Metal.framework */,
+				A42A81DD54695D16CDE76D48 /* MetalKit.framework */,
+				0334A9EA77606095031E01C7 /* QuartzCore.framework */,
+				E1162570EAE563C6A3856BC8 /* Security.framework */,
+				C3516B3C6333955339D6A0B3 /* UIKit.framework */,
+				AFCC9CC9EF88274C08C72D95 /* WebKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		F04388707EF80BB261AFC9A2 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				F2359A0C327D07F19552884C /* pompedin_iOS.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		F271350C4E260232426580E9 /* pompedin */ = {
+			isa = PBXGroup;
+			children = (
+				695FC25AAB7ED1208FEB77C3 /* main.mm */,
+				16DE58346977FC1E6516438A /* bindings */,
+			);
+			path = pompedin;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		DD9A8B6CD1FE628A10F674CF /* pompedin_iOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 730424CE0170E04D9CDD10E9 /* Build configuration list for PBXNativeTarget "pompedin_iOS" */;
+			buildPhases = (
+				B1F988CF2352B1138564F3FA /* Build Rust Code */,
+				388CA92E457F088EFC2A4C9F /* Sources */,
+				4C54E6E495BE756ECCC369B6 /* Resources */,
+				16CEE4FF4F2DBB2B1DBFC34A /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = pompedin_iOS;
+			packageProductDependencies = (
+			);
+			productName = pompedin_iOS;
+			productReference = F2359A0C327D07F19552884C /* pompedin_iOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		22AB31AF6A99C6A0D1964C13 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = 37AC818AE21A807A51B8BC81 /* Build configuration list for PBXProject "pompedin" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = D2E30C76A807145682F8E73B;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = F04388707EF80BB261AFC9A2 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				DD9A8B6CD1FE628A10F674CF /* pompedin_iOS */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		4C54E6E495BE756ECCC369B6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1D56748E39D4270C19B3215B /* Assets.xcassets in Resources */,
+				FCBA7D28B2953BB97788548D /* LaunchScreen.storyboard in Resources */,
+				E26B9D8DCF9DF3ED64EEA5ED /* assets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		B1F988CF2352B1138564F3FA /* Build Rust Code */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Build Rust Code";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(SRCROOT)/Externals/x86_64/${CONFIGURATION}/libapp.a",
+				"$(SRCROOT)/Externals/arm64/${CONFIGURATION}/libapp.a",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "npm run -- tauri ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths \"${FRAMEWORK_SEARCH_PATHS:?}\" --header-search-paths \"${HEADER_SEARCH_PATHS:?}\" --gcc-preprocessor-definitions \"${GCC_PREPROCESSOR_DEFINITIONS:-}\" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		388CA92E457F088EFC2A4C9F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4FAF8B0832CA8FAC4757A2A9 /* main.mm in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		1D2848C26CE42F8DBF2E21F3 /* debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = debug;
+		};
+		356490055FF36DCA148E35B9 /* release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ARCHS = (
+					arm64,
+				);
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = pompedin_iOS/pompedin_iOS.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				ENABLE_BITCODE = NO;
+				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\".\"",
+				);
+				INFOPLIST_FILE = pompedin_iOS/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.cinemint.pompedin;
+				PRODUCT_NAME = Pompedin;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALID_ARCHS = arm64;
+			};
+			name = release;
+		};
+		6A1177D05CCF137FB8998700 /* release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = release;
+		};
+		CE2B5CC90313D80862E920C3 /* debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ARCHS = (
+					arm64,
+				);
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = pompedin_iOS/pompedin_iOS.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				ENABLE_BITCODE = NO;
+				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\".\"",
+				);
+				INFOPLIST_FILE = pompedin_iOS/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.cinemint.pompedin;
+				PRODUCT_NAME = Pompedin;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALID_ARCHS = arm64;
+			};
+			name = debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		37AC818AE21A807A51B8BC81 /* Build configuration list for PBXProject "pompedin" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1D2848C26CE42F8DBF2E21F3 /* debug */,
+				6A1177D05CCF137FB8998700 /* release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = debug;
+		};
+		730424CE0170E04D9CDD10E9 /* Build configuration list for PBXNativeTarget "pompedin_iOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CE2B5CC90313D80862E920C3 /* debug */,
+				356490055FF36DCA148E35B9 /* release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 22AB31AF6A99C6A0D1964C13 /* Project object */;
+}
