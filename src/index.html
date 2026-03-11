@@ -145,6 +145,11 @@
                                 <i class="fa-solid fa-circle-info" style="margin-right:3px"></i> About
                             </button>
                         </div>
+                        <div class="ribbon-row">
+                            <button class="tb tb-wide" id="btn-help" data-tip="Open Documentation">
+                                <i class="fa-solid fa-book" style="margin-right:3px"></i> Help
+                            </button>
+                        </div>
                         <div class="ribbon-group-label">Info</div>
                     </div>
                 </div>
@@ -829,6 +834,112 @@
         <hr style="margin:4px 0; border:none; border-top:1px solid var(--border)">
         <div class="ctx-i" data-act="insert-frame">Insert Frame (Push Right)</div>
         <div class="ctx-i" data-act="remove-frame">Remove Frame (Pull Left)</div>
+    </div>
+
+    <div id="modal-help" class="mo-ov" style="display:none">
+        <div class="mo-box"
+            style="min-width: 700px; max-width: 900px; height: 80vh; display: flex; flex-direction: column; padding: 0; overflow: hidden;">
+
+            <div
+                style="padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--bg-panel);">
+                <div class="mo-title" style="margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-book" style="color: var(--accent);"></i> Pompedin Documentation
+                </div>
+                <button class="tb" id="help-close-x" style="width: 24px; height: 24px; font-size: 16px;">×</button>
+            </div>
+
+            <div style="display: flex; flex: 1; overflow: hidden;">
+
+                <div
+                    style="width: 200px; border-right: 1px solid var(--border); background: var(--bg-darkest); overflow-y: auto; padding: 20px 16px; flex-shrink: 0;">
+                    <div
+                        style="font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;">
+                        Contents</div>
+                    <ul class="help-index">
+                        <li><a href="#help-basics">1. Getting Started</a></li>
+                        <li><a href="#help-tools">2. Drawing Tools</a></li>
+                        <li><a href="#help-selection">3. Selection & Editing</a></li>
+                        <li><a href="#help-layers">4. Layers & Timeline</a></li>
+                        <li><a href="#help-audio">5. Audio Syncing</a></li>
+                        <li><a href="#help-export">6. Exporting</a></li>
+                        <li><a href="#help-shortcuts">7. Keyboard Shortcuts</a></li>
+                    </ul>
+                </div>
+
+                <div class="help-content" id="help-scroll-area">
+
+                    <h2 id="help-basics">1. Getting Started</h2>
+                    <p>Pompedin is a vector-based 2D animation tool. Pompedin separates your drawings into
+                        <b>Keyframes</b> on a timeline. When you draw on a blank frame, a new keyframe is automatically
+                        created.</p>
+                    <p>Use the <b>Workspace</b> tab to customize the application theme, and the <b>Project</b> tab to
+                        adjust your canvas size, frame rate (FPS), and total animation length.</p>
+
+                    <h2 id="help-tools">2. Drawing Tools</h2>
+                    <ul>
+                        <li><b>Brush (B):</b> Draws vector strokes. Enable "Pressure" to map pen pressure to stroke
+                            width. Enable "Texture" to apply bitmap textures along the vector path.</li>
+                        <li><b>Eraser (E):</b> Removes entire paths or segments that fall under the cursor.</li>
+                        <li><b>Fill (G):</b> Click inside a closed shape to fill it. Toggle "Fill" and "Stroke" in the
+                            ribbon to control what gets applied.</li>
+                        <li><b>Hide Edge (H):</b> Click or drag over a line segment to magically hide it while keeping
+                            the underlying vector shape intact (great for cel-shading intersections).</li>
+                    </ul>
+
+                    <h2 id="help-selection">3. Selection & Editing</h2>
+                    <p>The Select Tool (V) operates in two modes:</p>
+                    <ul>
+                        <li><b>Object Mode:</b> Click a shape to select it. A bounding box will appear, allowing you to
+                            Move, Scale, and Rotate the object.</li>
+                        <li><b>Vertex Mode:</b> Double-click a selected shape to reveal its anchor points. You can drag
+                            individual points or adjust their Bézier handles to fine-tune the curve. Press
+                            <kbd>Esc</kbd> or click empty space to exit.</li>
+                    </ul>
+
+                    <h2 id="help-layers">4. Layers & Timeline</h2>
+                    <p>Pompedin supports infinite layers. The timeline dictates when artwork appears.</p>
+                    <ul>
+                        <li><b>Blank Key (F6):</b> Inserts an empty keyframe at the playhead.</li>
+                        <li><b>Duplicate Key (F7):</b> Copies the current frame's artwork into a new keyframe so you can
+                            modify it.</li>
+                        <li><b>Onion Skin:</b> Toggle Onion Skinning in the Tools tab to see faded versions of
+                            previous/next frames. Click "+ Add Rule" to configure custom intervals.</li>
+                        <li><b>Right-Click Menu:</b> Right-click any cell on the timeline to Copy, Paste, Insert, or
+                            Delete frames.</li>
+                    </ul>
+
+                    <h2 id="help-audio">5. Audio Syncing</h2>
+                    <p>You can import an audio file to help with lip-syncing and timing. Go to the <b>Project</b> tab
+                        and click "Load Audio". A waveform will appear beneath the timeline ruler. Audio playback scrubs
+                        automatically as you play your animation.</p>
+
+                    <h2 id="help-export">6. Exporting</h2>
+                    <p>All export options are located in the <b>Export</b> tab.</p>
+                    <ul>
+                        <li><b>Video (MP4):</b> Renders your animation to a high-quality video file, mixing in your
+                            audio track automatically.</li>
+                        <li><b>Animated GIF:</b> Generates a lightweight looping GIF. You can adjust the color count and
+                            dithering.</li>
+                        <li><b>Spritesheet:</b> Tiles all frames into a single large PNG image, ideal for game engines.
+                        </li>
+                        <li><b>Sequence:</b> Exports every frame as an individual numbered PNG file.</li>
+                    </ul>
+
+                    <h2 id="help-shortcuts">7. Keyboard Shortcuts</h2>
+                    <ul>
+                        <li><kbd>Space</kbd> or <kbd>Middle-Click</kbd> - Pan Canvas</li>
+                        <li><kbd>Scroll Wheel</kbd> - Zoom Canvas</li>
+                        <li><kbd>Ctrl</kbd> + <kbd>Z</kbd> - Undo</li>
+                        <li><kbd>Ctrl</kbd> + <kbd>Y</kbd> - Redo</li>
+                        <li><kbd>Ctrl</kbd> + <kbd>S</kbd> - Save Project</li>
+                        <li><kbd>Ctrl</kbd> + <kbd>C</kbd> / <kbd>V</kbd> - Copy / Paste items (or frames)</li>
+                        <li><kbd>Delete</kbd> - Delete selected items</li>
+                        <li><kbd>Enter</kbd> - Play / Pause Animation</li>
+                        <li><kbd>←</kbd> / <kbd>→</kbd> - Previous / Next Frame</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="js/01-state.js"></script>

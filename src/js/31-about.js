@@ -6,7 +6,6 @@
        ═══════════════════════════════════════════════════ */
 
     VF.showAbout = function () {
-        /* Try to read app version from Tauri */
         var verEl = document.getElementById('about-version');
         if (verEl) {
             if (window.__TAURI__ && window.__TAURI__.app) {
@@ -22,25 +21,49 @@
         $('#modal-about').show();
     };
 
+    /* ═══════════════════════════════════════════════════
+       HELP & DOCS DIALOG
+       ═══════════════════════════════════════════════════ */
+
+    VF.showHelp = function () {
+        $('#modal-help').show();
+    };
+
     $(document).ready(function () {
-        /* Button in Workspace ribbon tab */
+
+        // Ribbon Buttons
         $('#btn-about').on('click', VF.showAbout);
+        $('#btn-help').on('click', VF.showHelp);
 
-        /* Close button */
-        $('#about-close').on('click', function () {
-            $('#modal-about').hide();
-        });
+        // Close Buttons
+        $('#about-close').on('click', function () { $('#modal-about').hide(); });
+        $('#help-close-x').on('click', function () { $('#modal-help').hide(); });
 
-        /* Close on overlay click */
-        $('#modal-about').on('click', function (e) {
+        // Close on overlay click
+        $('.mo-ov').on('click', function (e) {
             if (e.target === this) $(this).hide();
         });
 
-        /* Close on Escape */
-        $('#modal-about').on('keydown', function (e) {
+        // Close on Escape
+        $(document).on('keydown', function (e) {
             if (e.key === 'Escape') {
-                e.preventDefault();
-                $(this).hide();
+                if ($('#modal-about').is(':visible')) { e.preventDefault(); $('#modal-about').hide(); }
+                if ($('#modal-help').is(':visible')) { e.preventDefault(); $('#modal-help').hide(); }
+            }
+        });
+
+        // Smooth scrolling for Help Index sidebar
+        $('.help-index a').on('click', function (e) {
+            e.preventDefault();
+            var targetId = $(this).attr('href');
+            var $targetElem = $(targetId);
+            var $scrollArea = $('#help-scroll-area');
+
+            if ($targetElem.length) {
+                $scrollArea.animate({
+                    // Calculate exact scroll position relative to the scroll container
+                    scrollTop: $scrollArea.scrollTop() + $targetElem.position().top - 20
+                }, 300);
             }
         });
     });

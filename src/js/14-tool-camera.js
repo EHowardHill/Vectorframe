@@ -8,14 +8,33 @@
     var tCam = new (getP()).Tool(); tCam.name = 'cam';
     VF.tCam = tCam;
 
+    var lastScreenPt = null;
+
+    // 1. Capture the initial screen coordinate when the drag starts
+    tCam.onMouseDown = function (e) {
+        var P = getP();
+        lastScreenPt = new P.Point(e.event.clientX, e.event.clientY);
+    };
+
     tCam.onMouseDrag = function (e) {
+        var P = getP();
+
+        // 2. Calculate the raw pixel difference on the screen
+        var currentScreenPt = new P.Point(e.event.clientX, e.event.clientY);
+        var screenDelta = lastScreenPt ? currentScreenPt.subtract(lastScreenPt) : new P.Point(0, 0);
+        lastScreenPt = currentScreenPt;
+
         if (S.tool === 'pan') {
-            VF.view.center = VF.view.center.subtract(e.delta);
+            // Divide the screen movement by the zoom level to get stable project movement
+            VF.view.center = VF.view.center.subtract(screenDelta.divide(VF.view.zoom));
         } else if (S.tool === 'zoom') {
-            var f = 1 + e.delta.y * -0.006;
+            // Use screen Y movement so the zoom speed is consistent at all depths
+            var f = 1 + screenDelta.y * -0.006;
             VF.view.zoom = Math.max(.05, Math.min(16, VF.view.zoom * f));
         }
-        VF.updateInfo(); VF.drawBorder();
+
+        VF.updateInfo();
+        VF.drawBorder();
     };
 
     // Scroll-wheel zoom
