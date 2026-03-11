@@ -9,7 +9,7 @@
         var cvs = VF.cvs;
         var view = VF.view;
 
-        VF.saveFrame(true); VF.clearHandles();
+        VF.saveFrame(); VF.clearHandles();
 
         var oz = view.zoom;
         var oc = view.center.clone();
@@ -50,6 +50,21 @@
             });
         }
 
+        /* FIX: Re-show original layers that wobble may have hidden.
+           The wobble effect hides `pl.visible = false` on layers with wobble enabled,
+           replacing them with temp jittered layers. Since we hide the temp layers above,
+           we must restore visibility on the originals so they render in the export. */
+        var restoredOriginals = [];
+        S.layers.forEach(function (l) {
+            if (l.wobble && l.wobble.enabled && l.vis && l.type === 'vector') {
+                var pl = VF.pLayers[l.id];
+                if (pl && !pl.visible) {
+                    pl.visible = true;
+                    restoredOriginals.push(pl);
+                }
+            }
+        });
+
         view.viewSize = new P.Size(S.canvas.w, S.canvas.h);
         view.zoom = 1;
         view.center = new P.Point(S.canvas.w / 2, S.canvas.h / 2);
@@ -73,10 +88,14 @@
         hiddenRefLayers.forEach(function (pl) { pl.visible = true; });
         hiddenWobble.forEach(function (tl) { tl.visible = true; });
 
+        /* ── Re-hide originals that wobble should hide (will be fixed on next render()) ── */
+        /* Actually, let render() handle the restore naturally */
+
         VF.fitCanvas();
         view.zoom = oz;
         view.center = oc;
         view.update();
+        VF.render(); /* FIX: Trigger a full re-render to restore wobble state properly */
 
         // TAURI IPC EXPORT LOGIC
         const { invoke } = window.__TAURI__.core;

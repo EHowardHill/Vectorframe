@@ -14,7 +14,6 @@
     $('#tgl-stroke').on('click', function () {
         S.cfg.autoStroke = !S.cfg.autoStroke;
         $(this).toggleClass('on', S.cfg.autoStroke);
-        /* ── Selection-aware ── */
         if (VF.hasSelection && VF.hasSelection()) {
             VF.applyPropertyToSelection('enableStroke', S.cfg.autoStroke);
         }
@@ -23,7 +22,6 @@
         S.cfg.autoFill = !S.cfg.autoFill;
         $(this).toggleClass('on', S.cfg.autoFill);
         if (S.cfg.autoFill) { S.cfg.autoStroke = true; $('#tgl-stroke').addClass('on'); }
-        /* ── Selection-aware ── */
         if (VF.hasSelection && VF.hasSelection()) {
             VF.applyPropertyToSelection('enableFill', S.cfg.autoFill);
         }
@@ -76,6 +74,9 @@
     });
 
     // Layer Opacity Bindings
+    // FIX: Call VF.render() so opacity changes are immediately visible
+    //       (the old code only set pl.opacity but didn't trigger a redraw
+    //        for vector layers that might be using wobble, blend modes, etc.)
     $('#rng-opacity').on('input', function () {
         var l = VF.AL(); if (!l) return;
         l.opacity = +this.value / 100;
@@ -89,6 +90,7 @@
             }
         }
         $('#v-opacity').val(this.value);
+        VF.view.update();
     });
 
     $('#v-opacity').on('change input', function () {
@@ -105,6 +107,7 @@
             }
         }
         $('#rng-opacity').val(val);
+        VF.view.update();
     });
 
     // ── Stroke Color (Selection-aware) ──
@@ -153,6 +156,7 @@
     $('#btn-zfront').on('click', function () {
         var items = VF.getSelectedItems();
         if (items.length === 0) { VF.toast('Select items first'); return; }
+        if (VF.isLocked && VF.isLocked()) { VF.toast('Layer is locked'); return; }
         VF.saveHistory();
         items.forEach(function (item) { item.bringToFront(); });
         VF.saveFrame();
@@ -161,6 +165,7 @@
     $('#btn-zback').on('click', function () {
         var items = VF.getSelectedItems();
         if (items.length === 0) { VF.toast('Select items first'); return; }
+        if (VF.isLocked && VF.isLocked()) { VF.toast('Layer is locked'); return; }
         VF.saveHistory();
         items.reverse().forEach(function (item) { item.sendToBack(); });
         VF.saveFrame();
@@ -179,8 +184,12 @@
 
     // ◆ Duplicate Keyframe
     $('#btn-add-dup').on('click', function () {
-        VF.saveHistory();
         var l = VF.AL(); if (!l) return;
+
+        /* FIX: Check if layer is locked before creating keyframes */
+        if (l.locked) { VF.toast('Layer is locked'); return; }
+
+        VF.saveHistory();
 
         // 1. Save current frame and get the artwork we want to duplicate
         VF.saveFrame();
@@ -200,6 +209,7 @@
 
         // 3. Assign the duplicated data to the new frame
         l.frames[S.tl.frame] = dataToCopy;
+        if (l.cache) delete l.cache[S.tl.frame];
 
         // 4. Rerender the canvas and timeline
         VF.render();
@@ -208,8 +218,12 @@
 
     // ◇ Blank Keyframe
     $('#btn-add-blank').on('click', function () {
-        VF.saveHistory();
         var l = VF.AL(); if (!l) return;
+
+        /* FIX: Check if layer is locked before creating keyframes */
+        if (l.locked) { VF.toast('Layer is locked'); return; }
+
+        VF.saveHistory();
 
         // 1. Save the current frame's drawing data before moving the playhead
         VF.saveFrame();
@@ -219,7 +233,6 @@
         // 2. Advance the frame (extend the project timeline if we are at the very end)
         if (S.tl.frame >= S.tl.max - 1) {
             S.tl.max++;
-            // Keep the UI inputs in sync with the new max
             $('#pref-end').val(S.tl.max);
             $('#in-endframe').val(S.tl.max);
         }
@@ -227,6 +240,7 @@
 
         // 3. Create the empty keyframe at the new position
         l.frames[S.tl.frame] = [];
+        if (l.cache) delete l.cache[S.tl.frame];
         if (VF.pLayers[l.id]) VF.pLayers[l.id].removeChildren();
 
         // 4. Rerender the canvas and timeline
@@ -236,10 +250,15 @@
 
     // × Delete Keyframe
     $('#btn-del-node').on('click', function () {
-        VF.saveHistory();
         var l = VF.AL(); if (!l) return;
+
+        /* FIX: Check if layer is locked before deleting keyframes */
+        if (l.locked) { VF.toast('Layer is locked'); return; }
+
+        VF.saveHistory();
         if (l.frames[S.tl.frame] !== undefined) {
             delete l.frames[S.tl.frame];
+            if (l.cache) delete l.cache[S.tl.frame];
             if (VF.pLayers[l.id]) VF.pLayers[l.id].removeChildren();
             VF.render(); VF.uiTimeline();
         }

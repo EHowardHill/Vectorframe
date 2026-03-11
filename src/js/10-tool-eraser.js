@@ -9,6 +9,20 @@
 
     var tEraserSaved = false;
 
+    /* ── Helper: collect all segments belonging to an item tree ── */
+    function collectItemSegments(item) {
+        var segs = [];
+        if (item.segments) {
+            item.segments.forEach(function (seg) { segs.push(seg); });
+        }
+        if (item.children) {
+            item.children.forEach(function (child) {
+                collectItemSegments(child).forEach(function (seg) { segs.push(seg); });
+            });
+        }
+        return segs;
+    }
+
     function eraseAt(pt) {
         var pl = VF.pLayers[S.activeId]; if (!pl) return;
         var hit = pl.hitTest(pt, { stroke: true, fill: true, bounds: true, tolerance: Math.max(S.cfg.brushSize, 6) });
@@ -32,6 +46,20 @@
                     break;
                 }
             }
+
+            /* FIX: Remove stale segment references from VF.selSegments
+               before destroying the item. This prevents crashes when
+               the select tool later tries to operate on deleted segments. */
+            if (VF.selSegments.length > 0) {
+                var deadSegs = new Set();
+                collectItemSegments(target).forEach(function (seg) { deadSegs.add(seg); });
+                if (deadSegs.size > 0) {
+                    VF.selSegments = VF.selSegments.filter(function (seg) {
+                        return !deadSegs.has(seg);
+                    });
+                }
+            }
+
             target.remove();
             VF.view.update();
         }
@@ -51,6 +79,14 @@
 
     tEraser.onMouseUp = function (e) {
         if (VF.isPanInput(e.event)) return;
+
+        /* FIX: Refresh handles after erasing to prevent ghost gizmos */
+        if (VF.selSegments.length > 0) {
+            VF.showHandles();
+        } else {
+            VF.clearHandles();
+        }
+
         VF.saveFrame();
         VF.render();
     };

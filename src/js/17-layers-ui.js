@@ -43,7 +43,6 @@
                     l.blendMode.charAt(0).toUpperCase() + '</span>';
             }
 
-            // Notice we removed draggable="true" here
             h += '<div class="layer-item' + s + '" data-id="' + l.id + '" style="' + borderStyle + '">' +
                 '<button class="vbtn" data-id="' + l.id + '">' + vis + '</button>' +
                 '<span style="font-size:11px;opacity:.6">' + ico + '</span>' +
@@ -122,10 +121,9 @@
         var layerDrag = null;
 
         $list.on('pointerdown', '.layer-item', function (e) {
-            // Ignore right-clicks, or clicks directly on the buttons/inputs
             if (e.button !== 0 || $(e.target).closest('.vbtn, .lyr-name-input, .lyr-settings-btn').length) return;
 
-            e.preventDefault(); // Stop native drag / text selection
+            e.preventDefault();
 
             layerDrag = {
                 id: +$(this).data('id'),
@@ -141,14 +139,12 @@
         $(window).on('pointermove', function (e) {
             if (!layerDrag) return;
 
-            // 1. Detect drag threshold (5px)
             if (!layerDrag.isDragging) {
                 var dist = Math.abs(e.clientX - layerDrag.startX) + Math.abs(e.clientY - layerDrag.startY);
                 if (dist > 5) {
                     layerDrag.isDragging = true;
                     VF._isDraggingLayer = true;
 
-                    // Create physical floating ghost
                     layerDrag.ghost = layerDrag.el.clone().css({
                         position: 'fixed',
                         top: layerDrag.el.offset().top,
@@ -165,24 +161,21 @@
                 }
             }
 
-            // 2. Handle active drag
             if (layerDrag.isDragging) {
-                // Pin ghost to pointer
                 layerDrag.ghost.css({
                     top: e.clientY - (layerDrag.ghost.outerHeight() / 2),
                     left: e.clientX - 20
                 });
 
-                $('.layer-item').css('background', ''); // Clear visual states
+                $('.layer-item').css('background', '');
 
-                // Hide ghost momentarily to "see" what's directly underneath the pointer
                 layerDrag.ghost.hide();
                 var target = document.elementFromPoint(e.clientX, e.clientY);
                 layerDrag.ghost.show();
 
                 var $targetItem = $(target).closest('.layer-item');
                 if ($targetItem.length && $targetItem.data('id') !== layerDrag.id) {
-                    $targetItem.css('background', 'var(--bg-active)'); // Highlight target
+                    $targetItem.css('background', 'var(--bg-active)');
                     layerDrag.targetId = +$targetItem.data('id');
                 } else {
                     layerDrag.targetId = null;
@@ -215,6 +208,11 @@
                         sorted2.forEach(function (l, i) { l.z = len - 1 - i; });
                     }
                 }
+
+                /* FIX: Keep the dragged layer as the active layer after reorder.
+                   Previously, the active layer could become deselected visually
+                   if the drag changed the z-order. */
+                S.activeId = layerDrag.id;
 
                 // Cleanup UI
                 layerDrag.el.css('opacity', '1');

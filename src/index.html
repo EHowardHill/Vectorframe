@@ -58,8 +58,6 @@
 
                     <div class="div-v-ribbon"></div>
 
-                    <!-- ══════════ NEW-STROKE-ONLY CONTROLS ══════════ -->
-
                     <div class="ribbon-group" style="opacity:0.8;">
                         <div class="ribbon-row">
                             <span style="font-size:10px;color:var(--text-dim);width:48px">Smooth</span>
@@ -75,8 +73,6 @@
                     </div>
 
                     <div class="div-v-ribbon"></div>
-
-                    <!-- ══════════ SELECTION-APPLICABLE CONTROLS ══════════ -->
 
                     <div class="ribbon-group">
                         <div class="ribbon-row">
@@ -153,13 +149,16 @@
                     </div>
                 </div>
 
+                <!-- ═══════════════════════════════════════════
+                     TAB: TOOLS  (modified: onion width, symmetry sliders, guide opacity)
+                     ═══════════════════════════════════════════ -->
                 <div id="tab-tools" class="ribbon-panel">
 
-                    <!-- ══════════ ONION SKIN (unchanged) ══════════ -->
-                    <div class="ribbon-group" style="min-width:400px;">
+                    <!-- ══════════ ONION SKIN — wider left column ══════════ -->
+                    <div class="ribbon-group" style="min-width:440px;">
                         <div style="display:flex;gap:8px;height:calc(100% - 14px);">
                             <div
-                                style="display:flex;flex-direction:column;gap:5px;flex-shrink:0;justify-content:center;">
+                                style="display:flex;flex-direction:column;gap:5px;flex-shrink:0;justify-content:center;min-width:120px;">
                                 <div class="ribbon-row" style="height:22px;">
                                     <span style="font-size:10px;color:var(--text-dim);margin-right:4px">Onion</span>
                                     <div class="tgl" id="tgl-onion"></div>
@@ -183,19 +182,27 @@
 
                     <div class="div-v-ribbon"></div>
 
-                    <!-- ══════════ DRAWING ASSISTS ══════════ -->
+                    <!-- ══════════ SYMMETRY — with axis position sliders ══════════ -->
                     <div class="ribbon-group">
-                        <div class="ribbon-row" style="height:28px;">
+                        <div class="ribbon-row" style="height:26px;">
                             <span style="font-size:10px;color:var(--text-dim);width:36px">Sym H</span>
                             <div class="tgl" id="tgl-sym-h" data-tip="Mirror strokes across vertical axis"></div>
-                            <span style="font-size:10px;color:var(--text-dim);width:36px;margin-left:6px">Sym V</span>
-                            <div class="tgl" id="tgl-sym-v" data-tip="Mirror strokes across horizontal axis"></div>
+                            <span style="font-size:9px;color:var(--text-dim);margin-left:4px">X</span>
+                            <input class="sm-in" id="in-sym-h-pos" type="number" min="0" max="9999" value="320"
+                                style="width:42px;margin-left:2px" title="Horizontal axis X position">
                         </div>
-                        <div class="ribbon-row" style="height:28px;opacity:0.7;">
+                        <div class="ribbon-row" style="height:26px;">
+                            <span style="font-size:10px;color:var(--text-dim);width:36px">Sym V</span>
+                            <div class="tgl" id="tgl-sym-v" data-tip="Mirror strokes across horizontal axis"></div>
+                            <span style="font-size:9px;color:var(--text-dim);margin-left:4px">Y</span>
+                            <input class="sm-in" id="in-sym-v-pos" type="number" min="0" max="9999" value="240"
+                                style="width:42px;margin-left:2px" title="Vertical axis Y position">
+                        </div>
+                        <div class="ribbon-row" style="height:22px;opacity:0.7;">
                             <i class="fa-solid fa-circle-info"
                                 style="font-size:9px;color:var(--text-dim);margin-right:4px"></i>
-                            <span style="font-size:9px;color:var(--text-dim);white-space:nowrap">Mirrors brush strokes
-                                around canvas center</span>
+                            <span style="font-size:9px;color:var(--text-dim);white-space:nowrap">Mirrors around axis
+                                position</span>
                         </div>
                         <div class="ribbon-group-label">Symmetry</div>
                     </div>
@@ -298,20 +305,27 @@
 
                     <div class="div-v-ribbon"></div>
 
-                    <!-- ══════════ CANVAS GUIDES ══════════ -->
+                    <!-- ══════════ CANVAS GUIDES — with opacity slider ══════════ -->
                     <div class="ribbon-group">
-                        <div class="ribbon-row" style="height:28px;">
+                        <div class="ribbon-row" style="height:26px;">
                             <span style="font-size:10px;color:var(--text-dim);width:26px">Grid</span>
                             <div class="tgl" id="tgl-show-grid" data-tip="Toggle pixel grid overlay"></div>
                             <input class="sm-in" id="in-grid-size" type="number" min="4" max="256" value="16"
                                 style="width:34px;margin-left:6px" title="Grid spacing (px)">
                             <span style="font-size:9px;color:var(--text-dim);margin-left:2px">px</span>
                         </div>
-                        <div class="ribbon-row" style="height:28px;">
+                        <div class="ribbon-row" style="height:26px;">
                             <span style="font-size:10px;color:var(--text-dim);width:26px">Safe</span>
                             <div class="tgl" id="tgl-safe-zone" data-tip="Broadcast safe zone overlay"></div>
                             <span style="font-size:10px;color:var(--text-dim);width:32px;margin-left:6px">⊕ 3rds</span>
                             <div class="tgl" id="tgl-center-mark" data-tip="Center crosshair + rule of thirds"></div>
+                        </div>
+                        <div class="ribbon-row" style="height:26px;">
+                            <span style="font-size:10px;color:var(--text-dim);width:26px">Vis</span>
+                            <input type="range" id="rng-guide-opacity" min="5" max="100" value="50" style="width:60px"
+                                title="Guide visibility">
+                            <span id="v-guide-opacity"
+                                style="font-size:9px;color:var(--text-dim);width:26px;margin-left:4px;text-align:right">50%</span>
                         </div>
                         <div class="ribbon-group-label">Canvas Guides</div>
                     </div>
@@ -401,7 +415,6 @@
 
                 <div id="tab-export" class="ribbon-panel">
 
-                    <!-- ── Single Frame ── -->
                     <div class="ribbon-group">
                         <div class="ribbon-row">
                             <button class="tb tb-wide" id="btn-export-png" data-tip="Export current frame as PNG">
@@ -419,7 +432,6 @@
 
                     <div class="div-v-ribbon"></div>
 
-                    <!-- ── Animation ── -->
                     <div class="ribbon-group">
                         <div class="ribbon-row">
                             <button class="tb tb-wide" id="btn-export-mp4" data-tip="Export animation as MP4 video">
@@ -436,7 +448,6 @@
 
                     <div class="div-v-ribbon"></div>
 
-                    <!-- ── Spritesheet ── -->
                     <div class="ribbon-group">
                         <div class="ribbon-row">
                             <span style="font-size:10px;color:var(--text-dim);width:28px">Cols</span>
@@ -457,7 +468,6 @@
 
                     <div class="div-v-ribbon"></div>
 
-                    <!-- ── Range & Scale ── -->
                     <div class="ribbon-group">
                         <div class="ribbon-row">
                             <span style="font-size:10px;color:var(--text-dim);width:30px">From</span>
@@ -482,7 +492,6 @@
 
                     <div class="div-v-ribbon"></div>
 
-                    <!-- ── GIF Options ── -->
                     <div class="ribbon-group">
                         <div class="ribbon-row" style="height:28px;">
                             <span style="font-size:10px;color:var(--text-dim);width:34px">Loop</span>
@@ -669,12 +678,10 @@
 
             <div class="ls-section">
                 <div class="ls-section-title">General</div>
-
                 <div class="mo-row">
                     <label>Name</label>
                     <input id="ls-name" type="text" style="width:180px">
                 </div>
-
                 <div class="mo-row">
                     <label>Blend Mode</label>
                     <select id="ls-blend">
@@ -696,17 +703,14 @@
                         <option value="color">Color</option>
                     </select>
                 </div>
-
                 <div class="ls-check-row">
                     <label><input type="checkbox" id="ls-locked"> Lock Layer
                         <span class="ls-check-hint">— prevents drawing &amp; erasing</span></label>
                 </div>
-
                 <div class="ls-check-row">
                     <label><input type="checkbox" id="ls-reference"> Reference Only
                         <span class="ls-check-hint">— excluded from PNG &amp; MP4 export</span></label>
                 </div>
-
                 <div class="mo-row">
                     <label>Color Tag</label>
                     <div class="ls-tags-row">
@@ -724,33 +728,27 @@
 
             <div class="ls-section">
                 <div class="ls-section-title">Sketch Wobble</div>
-
                 <div class="ls-check-row" style="margin-bottom:10px">
                     <label><input type="checkbox" id="ls-wobble-on"> Enable Wobble
                         <span class="ls-check-hint">— jitters path vertices for a hand-drawn look</span></label>
                 </div>
-
                 <div id="ls-wobble-details">
                     <div class="mo-row">
                         <label>Offset (px)</label>
                         <input id="ls-wobble-offset" type="number" min="0" max="50" step="0.5" value="3"
                             style="width:80px">
                     </div>
-
                     <div class="ls-slider-row">
                         <label>Scale</label>
                         <input type="range" id="ls-wobble-scale" min="0.1" max="5" step="0.1" value="1.0">
                         <span class="ls-slider-val" id="ls-wobble-scale-val">1.0×</span>
                     </div>
-
                     <div class="ls-check-row">
                         <label><input type="checkbox" id="ls-wobble-stroke" checked> Apply to Stroked paths</label>
                     </div>
-
                     <div class="ls-check-row">
                         <label><input type="checkbox" id="ls-wobble-fill" checked> Apply to Filled paths</label>
                     </div>
-
                     <div class="ls-radio-row">
                         <span style="min-width:60px;font-size:11px;color:var(--text-secondary)">Seed</span>
                         <label><input type="radio" name="ls-wobble-seed" value="perFrame" checked> Per Frame
@@ -768,9 +766,6 @@
         </div>
     </div>
 
-    <!-- ═══════════════════════════════════════════════════
-         ABOUT MODAL
-         ═══════════════════════════════════════════════════ -->
     <div id="modal-about" class="mo-ov" style="display:none">
         <div class="mo-box about-box">
             <div class="about-header">
@@ -779,51 +774,45 @@
                     <div class="about-version" id="about-version"></div>
                 </div>
             </div>
-
-            <div class="about-author">
-                Created by <strong>Ethan / Nikolai "Cinemint" Hill</strong>
-            </div>
-
-            <div class="about-license-main">
-                Licensed under the <strong>BSD License</strong>
-            </div>
-
+            <div class="about-author">Created by <strong>Ethan / Nikolai "Cinemint" Hill</strong></div>
+            <div class="about-license-main">Licensed under the <strong>BSD License</strong></div>
             <div class="about-divider"></div>
-
             <div class="about-section-title">Third-Party Libraries</div>
-
             <div class="about-lib">
                 <div class="about-lib-name">Paper.js <span class="about-lib-ver">0.12.17</span></div>
                 <div class="about-lib-info">Vector graphics scripting framework</div>
                 <div class="about-lib-license">MIT License — © 2011–2020 Jürg Lehni &amp; Jonathan Puckey</div>
             </div>
-
             <div class="about-lib">
                 <div class="about-lib-name">jQuery <span class="about-lib-ver">3.7.1</span></div>
                 <div class="about-lib-info">DOM manipulation library</div>
                 <div class="about-lib-license">MIT License — © OpenJS Foundation and contributors</div>
             </div>
-
             <div class="about-lib">
                 <div class="about-lib-name">Tailwind CSS <span class="about-lib-ver">2.2.19</span></div>
                 <div class="about-lib-info">Utility-first CSS framework</div>
                 <div class="about-lib-license">MIT License — © Tailwind Labs, Inc.</div>
             </div>
-
             <div class="about-lib">
                 <div class="about-lib-name">Font Awesome Free <span class="about-lib-ver">6.4.0</span></div>
                 <div class="about-lib-info">Icon toolkit</div>
                 <div class="about-lib-license">Icons: CC BY 4.0 · Fonts: SIL OFL 1.1 · Code: MIT — © Fonticons, Inc.
                 </div>
             </div>
-
+            <div class="about-lib">
+                <div class="about-lib-name">FFmpeg <span class="about-lib-ver">(gyan.dev build)</span></div>
+                <div class="about-lib-info">Multimedia framework used for MP4 export</div>
+                <div class="about-lib-license">
+                    GPLv3 License — © FFmpeg developers.<br>
+                    Source code and build scripts available at <a href="https://www.gyan.dev/ffmpeg/builds/"
+                        class="about-link" target="_blank">gyan.dev/ffmpeg/builds/</a>
+                </div>
+            </div>
             <div class="about-divider"></div>
-
             <div class="about-footer">
                 Built with <a href="https://tauri.app" class="about-link" target="_blank">Tauri</a>
                 — MIT License — © The Tauri Programme within The Commons Conservancy
             </div>
-
             <div style="display:flex;justify-content:flex-end;margin-top:14px">
                 <button class="btn btn-p" id="about-close">Close</button>
             </div>

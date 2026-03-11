@@ -9,7 +9,7 @@
     };
 
     VF.goFrame = function (f) {
-        VF.saveFrame(true);
+        VF.saveFrame();
         VF.selSegments = [];
         VF.clearHandles();
         S.tl.frame = Math.max(0, Math.min(f, S.tl.max - 1));
@@ -32,7 +32,11 @@
 
             playInt = setInterval(function () {
                 var n = S.tl.frame + 1;
-                if (n >= S.tl.max) n = 0;
+                if (n >= S.tl.max) {
+                    n = 0;
+                    /* Restart audio in sync when animation loops */
+                    if (window.VF.startAudioPlayback) VF.startAudioPlayback(0);
+                }
                 VF.goFrame(n);
 
                 var nextN = n + 1 >= S.tl.max ? 0 : n + 1;
@@ -69,10 +73,17 @@
         }
         $('#tl-ruler').html(rh);
 
+        /* FIX: Add color tag data attribute to timeline labels for CSS border styling */
+        var TAG_COLORS = VF.TAG_COLORS || {};
         var lh = '<div class="tl-audio-label"><i class="fa-solid fa-music"></i> Audio</div>';
         [].concat(S.layers).sort(function (a, b) { return b.z - a.z; }).forEach(function (l) {
             var icon = l.type === 'image' ? '🖼 ' : '';
-            lh += '<div class="tl-llbl">' + icon + l.name + '</div>';
+            var tag = l.colorTag || 'none';
+            var tagStyle = '';
+            if (tag !== 'none' && TAG_COLORS[tag]) {
+                tagStyle = ' data-tag="' + tag + '" style="--tag-color:' + TAG_COLORS[tag] + '"';
+            }
+            lh += '<div class="tl-llbl"' + tagStyle + '>' + icon + l.name + '</div>';
         });
         $('#tl-labels').html(lh);
 
@@ -102,6 +113,10 @@
 
         $('#tl-grid').css('min-width', (displayMax * 18) + 'px');
         VF.uiPlayhead();
+
+        /* FIX: Re-render the audio waveform after the timeline DOM is rebuilt.
+           Without this, the waveform canvas gets cleared every time uiTimeline runs. */
+        if (VF.renderAudioWaveform) VF.renderAudioWaveform();
     };
 
     var ctxL = null, ctxF = null;
@@ -151,6 +166,13 @@
                 S.clip = res && res.data ? JSON.parse(JSON.stringify(res.data)) : null;
                 VF.toast(S.clip ? 'Keyframe copied' : 'Blank frame copied');
             } else {
+                /* FIX: Check if layer is locked before destructive operations */
+                if (layer.locked && act !== 'copy-frame') {
+                    VF.toast('Layer is locked');
+                    $dotCtx.hide();
+                    return;
+                }
+
                 VF.saveHistory();
 
                 if (act === 'toggle-loop') {
@@ -206,7 +228,7 @@
         $tlRows.on('pointerdown', '.tl-dot.keyframe', function (e) {
             if (e.button !== 0) return;
             e.preventDefault();
-            e.stopPropagation(); // Block the click event from navigating the cell immediately
+            e.stopPropagation();
 
             var $cell = $(this).closest('.tl-cell');
             tlDrag = {
@@ -271,19 +293,23 @@
             if (!tlDrag) return;
 
             if (!tlDrag.isDragging) {
-                // If the user just clicked the dot without dragging, jump to that frame
                 VF.goFrame(tlDrag.f);
             } else {
                 if (tlDrag.targetCell) {
                     var tf = tlDrag.targetCell.f;
                     var tl = tlDrag.targetCell.l;
 
-                    VF.saveHistory();
-
+                    /* FIX: Check if source layer is locked before allowing keyframe drag */
                     var srcLayer = S.layers.find(function (x) { return x.id === tlDrag.l; });
                     var tgtLayer = S.layers.find(function (x) { return x.id === tl; });
 
-                    if (srcLayer && tgtLayer) {
+                    if (srcLayer && srcLayer.locked) {
+                        VF.toast('Source layer is locked');
+                    } else if (tgtLayer && tgtLayer.locked) {
+                        VF.toast('Target layer is locked');
+                    } else if (srcLayer && tgtLayer) {
+                        VF.saveHistory();
+
                         var keyData = srcLayer.frames[tlDrag.f];
                         delete srcLayer.frames[tlDrag.f];
                         if (srcLayer.cache) delete srcLayer.cache[tlDrag.f];

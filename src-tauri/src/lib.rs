@@ -4,10 +4,10 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{ Path, PathBuf };
-use std::process::Command;
 use std::sync::Mutex;
 use tauri::Manager;
 use uuid::Uuid;
+use tauri_plugin_shell::ShellExt;
 
 // ═══════════════════════════════════════════════════
 //   APP STATE
@@ -403,7 +403,7 @@ fn mp4_frame(
 
 /// Encode frames into an MP4 via FFmpeg, writing to `output_path`.
 #[tauri::command]
-fn mp4_render(
+async fn mp4_render(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
     session_id: String,
@@ -444,53 +444,67 @@ fn mp4_render(
         None
     };
 
-    // Build FFmpeg command
+    // Build sidecar argument vector dynamically
     let input_pattern = session_dir.join("frame_%04d.png");
-    let mut cmd = Command::new("ffmpeg");
-    cmd.args(["-y", "-framerate", &fps.to_string()]);
-    cmd.args(["-i", &input_pattern.to_string_lossy()]);
+    let mut args: Vec<String> = vec![
+        "-y".to_string(),
+        "-framerate".to_string(), 
+        fps.to_string(),
+        "-i".to_string(), 
+        input_pattern.to_string_lossy().to_string(),
+    ];
 
     if let Some(ref audio) = audio_file {
-        cmd.args(["-i", &audio.to_string_lossy()]);
+        args.push("-i".to_string());
+        args.push(audio.to_string_lossy().to_string());
     }
 
-    cmd.args([
-        "-c:v",
-        "libx264",
-        "-pix_fmt",
-        "yuv420p",
-        "-preset",
-        "medium",
-        "-crf",
-        "18",
-        "-vf",
-        "pad=ceil(iw/2)*2:ceil(ih/2)*2",
+    args.extend(vec![
+        "-c:v".to_string(),
+        "libx264".to_string(),
+        "-pix_fmt".to_string(),
+        "yuv420p".to_string(),
+        "-preset".to_string(),
+        "medium".to_string(),
+        "-crf".to_string(),
+        "18".to_string(),
+        "-vf".to_string(),
+        "pad=ceil(iw/2)*2:ceil(ih/2)*2".to_string(),
     ]);
 
     if audio_file.is_some() {
-        cmd.args(["-c:a", "aac", "-b:a", "192k", "-shortest"]);
+        args.extend(vec![
+            "-c:a".to_string(), 
+            "aac".to_string(), 
+            "-b:a".to_string(), 
+            "192k".to_string(), 
+            "-shortest".to_string()
+        ]);
     }
 
-    cmd.args(["-t", &format!("{video_duration:.4}")]);
-    cmd.arg(&output_path);
+    args.push("-t".to_string());
+    args.push(format!("{video_duration:.4}"));
+    args.push(output_path);
 
-    let output = cmd.output().map_err(|e| {
-        if e.kind() == std::io::ErrorKind::NotFound {
-            "FFmpeg not found. Please install FFmpeg and ensure it is on your PATH.".to_string()
-        } else {
-            format!("Failed to run FFmpeg: {e}")
-        }
+    // Initialize the Sidecar referencing the "ffmpeg" bin bundled in tauri.conf.json
+    let sidecar = app.shell().sidecar("ffmpeg")
+        .map_err(|e| format!("Failed to create FFmpeg sidecar: {}", e))?;
+
+    // Execute the sidecar (notice the .await added here)
+    let output = sidecar.args(&args).output().await.map_err(|e| {
+        format!("Failed to execute FFmpeg sidecar: {}", e)
     })?;
 
-    // Clean up session
+    // Clean up temporary image frame session
     cleanup_session(&state.mp4_sessions, &session_id);
 
+    // Parse the output to catch encoding errors
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let tail: String = stderr
             .chars()
             .rev()
-            .take(1500)
+            .take(1500) // Take the last ~1500 characters to show the actual error cause
             .collect::<String>()
             .chars()
             .rev()
@@ -525,6 +539,7 @@ fn get_data_dir(app: tauri::AppHandle) -> String {
 pub fn run() {
     tauri::Builder
         ::default()
+        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState {
             mp4_sessions: Mutex::new(HashMap::new()),

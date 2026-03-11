@@ -29,11 +29,10 @@
 
         VF.toast("Starting MP4 export...");
         let $btn = $('#btn-export-mp4');
-        let originalBtnText = $btn.text();
         $btn.prop('disabled', true).text('Preparing...');
 
         // Save current state and clear UI selections
-        VF.saveFrame(true);
+        VF.saveFrame();
         VF.clearHandles();
 
         // Store original view state so we can restore it later
@@ -50,6 +49,29 @@
         VF.onionLayerFg.visible = false;
         VF.fgLayer.visible = false;
 
+        /* FIX: Hide reference layers during MP4 export (matching PNG export) */
+        var hiddenRefLayers = [];
+        S.layers.forEach(function (l) {
+            if (l.reference && l.vis) {
+                var pl = VF.pLayers[l.id];
+                if (pl) {
+                    pl.visible = false;
+                    hiddenRefLayers.push(pl);
+                }
+            }
+        });
+
+        /* FIX: Hide wobble temp layers during MP4 export */
+        var hiddenWobble = [];
+        if (VF._wobbleTempLayers) {
+            VF._wobbleTempLayers.forEach(function (tl) {
+                if (tl.visible) {
+                    tl.visible = false;
+                    hiddenWobble.push(tl);
+                }
+            });
+        }
+
         // Reset camera to exactly 1:1 for rendering
         VF.view.viewSize = new VF.P.Size(S.canvas.w, S.canvas.h);
         VF.view.zoom = 1;
@@ -65,9 +87,11 @@
             ec.height = S.canvas.h;
             var ectx = ec.getContext('2d');
 
-            // Set global flag so `04-serialization.js` forces full vector deserialization 
-            // for maximum quality, ignoring the low-res raster cache.
+            // Set global flag so `04-serialization.js` forces full vector deserialization
             VF._exporting = true;
+
+            // Video doesn't support alpha. If canvas is transparent, force white.
+            var mp4Bg = (VF.wsPrefs && !VF.wsPrefs.canvasBgTransparent) ? VF.wsPrefs.canvasBgColor : '#ffffff';
 
             // 3. Loop through every frame
             for (let i = 0; i < S.tl.max; i++) {
@@ -77,8 +101,6 @@
 
                 // Clear export canvas and paint background
                 ectx.clearRect(0, 0, ec.width, ec.height);
-                // Video doesn't support alpha. If canvas is transparent, force white. Otherwise use their chosen color.
-                var mp4Bg = (VF.wsPrefs && !VF.wsPrefs.canvasBgTransparent) ? VF.wsPrefs.canvasBgColor : '#ffffff';
                 ectx.fillStyle = mp4Bg;
                 ectx.fillRect(0, 0, ec.width, ec.height);
 
@@ -96,7 +118,7 @@
                 });
 
                 // Update UI progress
-                $btn.text(`Exporting ${i + 1} / ${S.tl.max}`);
+                $btn.text('Exporting ' + (i + 1) + ' / ' + S.tl.max);
             }
 
             VF._exporting = false; // Turn off high-res forced render
@@ -113,7 +135,7 @@
                 outputPath: outputPath
             });
 
-            VF.toast("🎬 MP4 Exported Successfully!");
+            VF.toast("MP4 Exported Successfully!");
         } catch (err) {
             console.error("Export failed:", err);
             VF.toast("MP4 Export Failed: " + err);
@@ -127,6 +149,10 @@
             VF.onionLayerFg.visible = true;
             VF.fgLayer.visible = true;
 
+            /* FIX: Restore reference layers */
+            hiddenRefLayers.forEach(function (pl) { pl.visible = true; });
+            hiddenWobble.forEach(function (tl) { tl.visible = true; });
+
             S.tl.frame = originalFrame;
             VF.fitCanvas();
             VF.view.zoom = originalZoom;
@@ -134,13 +160,12 @@
             VF.render();
             VF.uiTimeline();
 
-            $btn.prop('disabled', false).html('<i class="fa-solid fa-clapperboard"></i> Export MP4');
+            $btn.prop('disabled', false).html('<i class="fa-solid fa-film" style="margin-right:3px"></i> Video (MP4)');
         }
     };
 
     // Bind the event
     $(document).ready(function () {
-        // Ensure we unbind any previous handlers to prevent double-firing
         $('#btn-export-mp4').off('click').on('click', VF.exportMP4);
     });
 

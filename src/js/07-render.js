@@ -100,8 +100,6 @@
 
                         var targetLayer = skin.top ? VF.onionLayerFg : VF.onionLayerBg;
 
-                        // We still use a Group for organization, but DO NOT apply opacity to it!
-                        // This entirely prevents the Paper.js group-opacity camera bug.
                         var skinGroup = new P.Group();
                         targetLayer.addChild(skinGroup);
 
@@ -155,7 +153,7 @@
                             } else {
                                 imgR.position = new P.Point(S.canvas.w / 2, S.canvas.h / 2);
                             }
-                            imgR.opacity = skinOpacity * 0.5; // Apply directly to the Raster
+                            imgR.opacity = skinOpacity * 0.5;
                             skinGroup.addChild(imgR);
                         }
                     }
@@ -182,11 +180,23 @@
                 VF.grainGroup.visible = true;
                 VF.grainRaster.opacity = (S.cfg.grainAmt / 100) * 0.5;
 
-                // Update clipping mask to perfectly fit current project bounds
-                VF.grainClip.bounds.x = 0;
-                VF.grainClip.bounds.y = 0;
-                VF.grainClip.bounds.width = S.canvas.w;
-                VF.grainClip.bounds.height = S.canvas.h;
+                /* FIX: Only rebuild the clip rectangle when the canvas
+                   size actually changes. Use insertChild(0, ...) to
+                   guarantee the clip lands at index 0 (the mask slot). */
+                var clipB = VF.grainClip.bounds;
+                if (Math.abs(clipB.width - S.canvas.w) > 0.5 ||
+                    Math.abs(clipB.height - S.canvas.h) > 0.5 ||
+                    Math.abs(clipB.x) > 0.5 ||
+                    Math.abs(clipB.y) > 0.5) {
+                    VF.grainClip.remove();
+                    var newClip = new P.Path.Rectangle({
+                        point: [0, 0],
+                        size: [S.canvas.w, S.canvas.h],
+                        insert: false
+                    });
+                    VF.grainGroup.insertChild(0, newClip);
+                    VF.grainClip = newClip;
+                }
 
                 // Reset matrix to identity so scaling doesn't compound infinitely
                 VF.grainRaster.matrix = new P.Matrix();

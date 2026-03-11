@@ -5,13 +5,22 @@
     var cvs = VF.cvs;
 
     VF.setTool = function (t) {
+        var prevTool = S.tool;
         S.tool = t;
 
         /* Reset to object mode when leaving select-family tools */
-        if (!['select', 'lasso', 'translate', 'rotate', 'scale'].includes(t)) {
+        var isSelectFamily = ['select', 'lasso', 'translate', 'rotate', 'scale'];
+        if (isSelectFamily.indexOf(t) === -1) {
             VF.selectMode = 'object';
-            VF.clearHandles();
-            VF.selSegments = [];
+
+            /* FIX: Only clear selection if we're actually changing away from
+               a select-family tool. Don't clear if we're just switching between
+               non-selection tools (e.g. brush → eraser) as that would lose
+               the last selection context for when the user switches back. */
+            if (isSelectFamily.indexOf(prevTool) !== -1) {
+                VF.clearHandles();
+                VF.selSegments = [];
+            }
         }
 
         $('#left-tools .tb').removeClass('active');

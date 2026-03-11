@@ -1,0 +1,50 @@
+========================================================================
+FFmpeg License and Credits
+========================================================================
+
+This application (Pompedin) includes a pre-compiled binary of FFmpeg 
+to facilitate MP4 video export. 
+
+FFmpeg is a trademark of Fabrice Bellard, originator of the FFmpeg project.
+Copyright (c) 2000-2024 the FFmpeg developers.
+
+------------------------------------------------------------------------
+LICENSE NOTICE (GPLv3)
+------------------------------------------------------------------------
+The FFmpeg executable bundled with this software is an unmodified build 
+provided by Gyan Doshi (gyan.dev). Because this specific build includes 
+the libx264 encoder, the bundled FFmpeg binary is licensed under the 
+GNU General Public License version 3.0 (GPLv3).
+
+This FFmpeg binary is invoked by Pompedin as a separate, independent 
+command-line process ("mere aggregation"). Pompedin itself remains 
+licensed under the BSD License.
+
+------------------------------------------------------------------------
+SOURCE CODE ACCESS
+------------------------------------------------------------------------
+In compliance with the GNU General Public License v3.0, the complete 
+source code for FFmpeg, as well as the build scripts and configuration 
+flags used to compile this specific executable, are freely available to 
+anyone.
+
+You can download the FFmpeg source code and the exact build scripts 
+used to create this binary from the following locations:
+
+1. Gyan.dev Build Scripts & Source: 
+   https://www.gyan.dev/ffmpeg/builds/
+
+2. Official FFmpeg Source Code: 
+   https://ffmpeg.org/download.html
+
+If the above links become unavailable, please contact the creator of 
+Pompedin, and a copy of the source code corresponding to this bundled 
+binary will be provided to you.
+
+------------------------------------------------------------------------
+DISCLAIMER
+------------------------------------------------------------------------
+FFmpeg is distributed in the hope that it will be useful, but WITHOUT 
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or 
+FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License 
+for more details.

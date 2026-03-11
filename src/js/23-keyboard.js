@@ -24,7 +24,6 @@
         VF.selSegments.forEach(function (seg) {
             if (!seg.path) return;
 
-            /* Walk up from the segment's path to the direct child of pl */
             var item = seg.path;
             while (item.parent && item.parent !== pl) {
                 item = item.parent;
@@ -39,15 +38,12 @@
     };
 
     /* ═══════════════════════════════════════════════════
-       Serialize a single top-level item the same way
-       serPL handles children — texture groups get their
-       custom JSON, everything else uses exportJSON.
+       Serialize a single top-level item
        ═══════════════════════════════════════════════════ */
     VF.serItem = function (c) {
         var P = getP();
         if (c._isH) return null;
 
-        /* ── Texture stroke group ── */
         if (c.data && c.data.isTextureStroke) {
             var customData = {
                 __texStroke: true,
@@ -84,7 +80,6 @@
             return JSON.stringify(customData);
         }
 
-        /* ── Standard vector item ── */
         if (c.className === 'Path' || c.className === 'CompoundPath' ||
             c.className === 'Shape' || c.className === 'Group') {
             var clone = c.clone({ insert: false });
@@ -95,9 +90,7 @@
     };
 
     /* ═══════════════════════════════════════════════════
-       Deserialize a single item JSON string and add it
-       to the given paper layer.  Same logic as desPL
-       but for one item at a time.
+       Deserialize a single item
        ═══════════════════════════════════════════════════ */
     VF.desItem = function (pl, jsonStr) {
         var P = getP();
@@ -171,6 +164,12 @@
         var items = VF.getSelectedItems();
         if (items.length === 0) return false;
 
+        /* FIX: Check if layer is locked before cutting */
+        if (VF.isLocked && VF.isLocked()) {
+            VF.toast('Layer is locked');
+            return false;
+        }
+
         VF.saveHistory();
 
         var serialized = [];
@@ -182,7 +181,6 @@
         if (serialized.length > 0) {
             VF.itemClip = serialized;
 
-            /* Remove the items from the layer */
             items.forEach(function (item) { item.remove(); });
 
             VF.selSegments = [];
@@ -205,13 +203,17 @@
         var pl = VF.pLayers[S.activeId];
         if (!pl) return false;
 
+        /* FIX: Check if layer is locked before pasting */
+        if (VF.isLocked && VF.isLocked()) {
+            VF.toast('Layer is locked');
+            return false;
+        }
+
         VF.saveHistory();
 
-        /* Clear current selection */
         VF.selSegments = [];
         VF.clearHandles();
 
-        /* Offset pasted items slightly so the user can see they pasted */
         var PASTE_OFFSET = 10;
         var P = getP();
         var pastedItems = [];
@@ -224,14 +226,12 @@
             }
         });
 
-        /* Select the pasted items */
         pastedItems.forEach(function (item) {
             if (item.segments) {
                 item.segments.forEach(function (seg) {
                     VF.selSegments.push(seg);
                 });
             } else if (item.children) {
-                /* For groups (texture strokes), select the guide path segments */
                 item.children.forEach(function (child) {
                     if (child.segments) {
                         child.segments.forEach(function (seg) {
@@ -253,13 +253,12 @@
        KEYDOWN HANDLER
        ═══════════════════════════════════════════════════ */
     $(document).on('keydown', function (e) {
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
 
         if (e.ctrlKey || e.metaKey) {
             if (e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) VF.execRedo(); else VF.execUndo(); return; }
             if (e.key.toLowerCase() === 'y') { e.preventDefault(); VF.execRedo(); return; }
 
-            /* ── SAVE (Ctrl+S / Ctrl+Shift+S) ── */
             if (e.key.toLowerCase() === 's') {
                 e.preventDefault();
                 if (e.shiftKey) VF.doSave('save-as');
@@ -267,7 +266,6 @@
                 return;
             }
 
-            /* ── CUT (Ctrl+X) ── */
             if (e.key.toLowerCase() === 'x') {
                 e.preventDefault();
                 if (VF.selSegments.length > 0) {
@@ -276,7 +274,6 @@
                 return;
             }
 
-            /* ── COPY: items if selected, otherwise frame ── */
             if (e.key.toLowerCase() === 'c') {
                 e.preventDefault();
                 if (VF.selSegments.length > 0) {
@@ -292,8 +289,6 @@
                 return;
             }
 
-            /* ── PASTE: items if item clipboard has data AND we're in a
-               select/lasso/transform tool, otherwise frame paste ── */
             if (e.key.toLowerCase() === 'v') {
                 e.preventDefault();
                 var inSelectTool = ['select', 'lasso', 'translate', 'rotate', 'scale'].indexOf(S.tool) !== -1;
@@ -303,6 +298,11 @@
                 } else {
                     var l2 = VF.AL();
                     if (l2) {
+                        /* FIX: Check if layer is locked before frame paste */
+                        if (l2.locked) {
+                            VF.toast('Layer is locked');
+                            return;
+                        }
                         VF.saveHistory();
                         l2.frames[S.tl.frame] = S.clip ? JSON.parse(JSON.stringify(S.clip)) : [];
                         if (!l2.cache) l2.cache = {};
@@ -343,6 +343,11 @@
             }
         }
         else if (k === 'delete' || k === 'backspace') {
+            /* FIX: Check if layer is locked before deleting selected items */
+            if (VF.isLocked && VF.isLocked()) {
+                VF.toast('Layer is locked');
+                return;
+            }
             if (VF.selSegments.length > 0) {
                 VF.saveHistory();
                 var items = VF.getSelectedItems();

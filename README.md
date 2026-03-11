@@ -34,17 +34,6 @@ Frame-by-frame vector animation tool, built with Tauri 2 + Rust + Paper.js.
 
    The packaged app will be in `src-tauri/target/release/bundle/`.
 
-## Brush Textures
-
-On first run, the app creates a data directory. Check the dev console for the path:
-
-```
-pompedin data directory: /Users/you/Library/Application Support/com.pompedin.app/
-Place brush PNGs in: /Users/you/Library/Application Support/com.pompedin.app/brush/
-```
-
-Copy your brush PNGs from the original `brush/` folder into that directory.
-
 ## Project Structure
 
 ```

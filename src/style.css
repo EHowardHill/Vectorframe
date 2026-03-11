@@ -55,6 +55,9 @@
     --accent: #4a90e2;
     --accent-hover: #5fa0eb;
     --accent-dim: rgba(74, 144, 226, 0.15);
+    --warning: #ff5c38;
+    --success: #34d058;
+    --orange: #ff9640;
 }
 
 /* System Dark Mode */
@@ -75,6 +78,9 @@
         --accent: #4a90e2;
         --accent-hover: #5fa0eb;
         --accent-dim: rgba(74, 144, 226, 0.15);
+        --warning: #ff5c38;
+        --success: #34d058;
+        --orange: #ff9640;
     }
 }
 
@@ -121,12 +127,10 @@ body {
 
 #app {
     display: grid;
-    /* Changed first row from hardcoded 38px to min-content to adapt to the ribbon */
     grid-template-rows: min-content 1fr 130px;
     grid-template-columns: 130px 1fr 210px;
     height: 100vh;
     position: relative;
-    /* anchor for absolutely-positioned resize handles */
 }
 
 #top-bar {
@@ -159,6 +163,7 @@ body {
     border-bottom: 2px solid transparent;
     transition: color 0.1s, border-color 0.1s;
     margin-right: 2px;
+    user-select: none;
 }
 
 .ribbon-tab:hover {
@@ -172,10 +177,10 @@ body {
     background: var(--bg-panel);
 }
 
+/* Single consolidated ribbon height (was defined twice before) */
 .ribbon-content {
     display: flex;
-    height: 90px;
-    /* Increased from 84px to accommodate the scrollbar */
+    height: 110px;
     background: var(--bg-panel);
     padding: 8px 10px;
 }
@@ -189,7 +194,6 @@ body {
     height: 100%;
     position: relative;
     flex-shrink: 0;
-    /* Prevents the groups from squishing when space runs out */
 }
 
 .ribbon-group-label {
@@ -202,6 +206,7 @@ body {
     color: var(--text-dim);
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    user-select: none;
 }
 
 .ribbon-panel {
@@ -212,7 +217,6 @@ body {
     overflow-x: auto;
     overflow-y: hidden;
     padding-bottom: 6px;
-    /* Pushes content up slightly so the track doesn't overlap */
 }
 
 .ribbon-panel.active {
@@ -226,14 +230,12 @@ body {
 
 .ribbon-panel::-webkit-scrollbar-track {
     background: transparent;
-    /* Adds a subtle anchor line above the scrollbar area */
     border-top: 1px solid var(--grid-line);
 }
 
 .ribbon-panel::-webkit-scrollbar-thumb {
     background: var(--text-dim);
     border-radius: 3px;
-    /* Uses the panel background as a border to create an inset/recessed illusion */
     border: 1px solid var(--bg-panel);
 }
 
@@ -281,22 +283,17 @@ body {
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    /* Stretches buttons to fill width */
     padding: 8px 6px;
-    /* Adjusted horizontal padding */
     gap: 2px;
     overflow-y: auto;
     overflow-x: hidden;
-    /* Explicitly prevents horizontal scrolling */
 }
 
-/* Update the vertical dividers inside the left toolbar to span the full width */
 #left-tools .div-v {
     width: 100%;
     margin: 6px 0;
 }
 
-/* Adjust tooltip position so it doesn't overlap the wider buttons */
 #left-tools .tb[data-tip]:hover::after {
     left: 105%;
 }
@@ -347,6 +344,7 @@ body {
     font-size: 13px;
     transition: background .1s, color .1s;
     position: relative;
+    user-select: none;
 }
 
 .tb:hover {
@@ -357,6 +355,12 @@ body {
 .tb.active {
     background: var(--accent-dim);
     color: var(--accent);
+}
+
+.tb:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 .tb svg {
@@ -481,13 +485,10 @@ input[type="range"]::-webkit-slider-thumb {
 .tb-sidebar {
     width: 100%;
     justify-content: flex-start;
-    /* Aligns icon and text to the left */
     padding: 0 10px;
     gap: 10px;
-    /* Space between icon and text */
 }
 
-/* Ensure FontAwesome icons have a uniform width so text aligns perfectly */
 .tb-sidebar i {
     width: 16px;
     text-align: center;
@@ -508,6 +509,7 @@ input[type="range"]::-webkit-slider-thumb {
     letter-spacing: .9px;
     margin-bottom: 5px;
     font-weight: 700;
+    user-select: none;
 }
 
 .layer-item {
@@ -574,7 +576,6 @@ input[type="range"]::-webkit-slider-thumb {
     border-right: 1px solid var(--border);
     overflow-y: auto;
     padding-top: 16px;
-    /* ← matches #tl-ruler height so labels align with rows */
 }
 
 #tl-scroll {
@@ -600,6 +601,7 @@ input[type="range"]::-webkit-slider-thumb {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    user-select: none;
 }
 
 .tl-row {
@@ -615,7 +617,6 @@ input[type="range"]::-webkit-slider-thumb {
     height: 24px;
     flex-shrink: 0;
     border-right: 1px solid var(--grid-line);
-    /* Changed from hardcoded rgba */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -673,6 +674,7 @@ input[type="range"]::-webkit-slider-thumb {
     font-size: 8px;
     color: var(--text-dim);
     cursor: pointer;
+    user-select: none;
 }
 
 .tl-rc:hover {
@@ -783,6 +785,7 @@ input[type="range"]::-webkit-slider-thumb {
     font-size: 11px;
     cursor: pointer;
     color: var(--text-primary);
+    user-select: none;
 }
 
 .ctx-i:hover {
@@ -800,14 +803,9 @@ input[type="range"]::-webkit-slider-thumb {
     width: 100%;
     height: 100%;
     outline: none;
-    /* Prevents the focus ring when using keyboard shortcuts */
 
-    /* Disables native browser pinch-to-zoom and swipe-to-scroll 
-       so your custom Paper.js camera tools work flawlessly. */
     touch-action: none;
 
-    /* Keeps the canvas tack-sharp when zoomed in, completely 
-       disabling bilinear blurring for that crisp pixel look. */
     image-rendering: -moz-crisp-edges;
     image-rendering: -webkit-optimize-contrast;
     image-rendering: crisp-edges;
@@ -822,6 +820,7 @@ input[type="range"]::-webkit-slider-thumb {
     color: var(--text-dim);
     pointer-events: none;
     z-index: 10;
+    user-select: none;
 }
 
 #cursor-info {
@@ -832,6 +831,7 @@ input[type="range"]::-webkit-slider-thumb {
     color: var(--text-dim);
     pointer-events: none;
     z-index: 10;
+    user-select: none;
 }
 
 /* Tooltip (left tools) */
@@ -852,10 +852,10 @@ input[type="range"]::-webkit-slider-thumb {
     pointer-events: none;
 }
 
-/* Toast */
+/* Toast — positioned above the timeline so it doesn't get clipped */
 .toast-msg {
     position: fixed;
-    bottom: 24px;
+    bottom: 160px;
     left: 50%;
     transform: translateX(-50%);
     background: var(--bg-active);
@@ -874,7 +874,6 @@ input[type="range"]::-webkit-slider-thumb {
     background: var(--bg-dark);
     border: 2px solid var(--accent);
     border-radius: 2px;
-    /* Square/Diamond look instead of a circle */
     transform: rotate(45deg);
     width: 8px;
     height: 8px;
@@ -888,22 +887,12 @@ input[type="range"]::-webkit-slider-thumb {
     position: absolute;
     top: 10px;
     left: -9px;
-    /* Connects backward to the previous cell */
     width: 18px;
-    /* Width of a standard cell */
     height: 4px;
     background: var(--accent);
     opacity: 0.35;
     z-index: 1;
     pointer-events: none;
-}
-
-/* ═══════════════════════════════════════════════════
-   RIBBON HEIGHT OVERRIDE  (taller for onion controls)
-   ═══════════════════════════════════════════════════ */
-.ribbon-content {
-    height: 110px;
-    /* Increased from 104px */
 }
 
 /* ═══════════════════════════════════════════════════
@@ -1018,8 +1007,6 @@ input[type="range"]::-webkit-slider-thumb {
    RESIZABLE PANEL HANDLES
    ═══════════════════════════════════════════════════ */
 
-/* Handles are absolutely positioned over #app (position:relative).
-   They sit on panel borders without participating in grid flow. */
 .resize-handle {
     position: absolute;
     z-index: 15;
@@ -1033,7 +1020,6 @@ input[type="range"]::-webkit-slider-thumb {
     transition-delay: 0.05s;
 }
 
-/* Vertical handles (left & right panel edges) — positioned by JS */
 .resize-v {
     top: 0;
     bottom: 0;
@@ -1041,7 +1027,6 @@ input[type="range"]::-webkit-slider-thumb {
     cursor: col-resize;
 }
 
-/* Horizontal handle (timeline top edge) — positioned by JS */
 .resize-h {
     left: 0;
     right: 0;
