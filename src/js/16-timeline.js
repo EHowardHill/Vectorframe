@@ -120,9 +120,43 @@
     };
 
     var ctxL = null, ctxF = null;
+
+    /* ═══════════════════════════════════════════════════
+       CONTEXT MENU — with viewport bounds clamping
+       ═══════════════════════════════════════════════════
+       Positions the menu at (x, y) but shifts it inward
+       if it would overflow the right or bottom edge of
+       the viewport.
+       ═══════════════════════════════════════════════════ */
     function showCtx(x, y, l, f) {
         ctxL = l; ctxF = f;
-        $('#dot-ctx').css({ left: x, top: y, display: 'block' });
+
+        var $menu = $('#dot-ctx');
+
+        /* Make the menu visible off-screen first so we can measure it */
+        $menu.css({ left: -9999, top: -9999, display: 'block' });
+
+        var mw = $menu.outerWidth();
+        var mh = $menu.outerHeight();
+        var vw = window.innerWidth;
+        var vh = window.innerHeight;
+        var pad = 4; /* small margin from window edges */
+
+        /* Clamp to the right edge */
+        if (x + mw + pad > vw) {
+            x = vw - mw - pad;
+        }
+
+        /* Clamp to the bottom edge */
+        if (y + mh + pad > vh) {
+            y = vh - mh - pad;
+        }
+
+        /* Safety: don't let it go negative either */
+        if (x < pad) x = pad;
+        if (y < pad) y = pad;
+
+        $menu.css({ left: x, top: y });
     }
 
     // ═══════════════════════════════════════════════════

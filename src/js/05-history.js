@@ -38,6 +38,7 @@
         VF.undoStack.push(snapshotLayers());
         if (VF.undoStack.length > VF.MAX_HISTORY) VF.undoStack.shift();
         VF.redoStack = [];
+        VF._isDirty = true; // Mark as unsaved
     };
 
     VF.restoreSnapshot = function (snapStr) {
@@ -69,6 +70,7 @@
         VF.redoStack.push(snapshotLayers());
         var snap = VF.undoStack.pop();
         VF.restoreSnapshot(snap);
+        VF._isDirty = true; // State changed
         VF.toast("Undo");
     };
 
@@ -78,6 +80,7 @@
         VF.undoStack.push(snapshotLayers());
         var snap = VF.redoStack.pop();
         VF.restoreSnapshot(snap);
+        VF._isDirty = true; // State changed
         VF.toast("Redo");
     };
 

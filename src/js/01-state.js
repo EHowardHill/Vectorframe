@@ -29,7 +29,7 @@
             { rel: true, val: -1, op: 16, top: false },
             { rel: true, val: 1, op: 10, top: false }
         ],
-        tool: 'brush',
+        tool: 'select',
         audioData: null,
         audioFilename: null
     };
@@ -47,6 +47,7 @@
     VF.redoStack = [];
     VF.MAX_HISTORY = 30;
     VF.currentPressure = 1.0;
+    VF._isDirty = false;
 
     /**
      * Returns a tinted canvas element.

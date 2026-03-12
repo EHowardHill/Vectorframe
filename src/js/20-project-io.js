@@ -46,7 +46,7 @@
        - 'save-as': force native OS save dialog
        ═══════════════════════════════════════════════════ */
     VF.doSave = function (mode) {
-        // Fallback for the autosave timer in 24-init.js passing true
+        // Fallback for the autosave timer passing true
         if (mode === true) mode = 'autosave';
 
         VF.saveFrame();
@@ -54,53 +54,56 @@
         var invoke = window.__TAURI__.core.invoke;
 
         if (mode === 'autosave') {
-            invoke('save_project', {
+            return invoke('save_project', {
                 state: statePayload,
                 name: null,
                 isAutosave: true
             }).catch(function (e) { console.error("Autosave failed", e); });
-            return;
         }
 
         // Direct Save (Ctrl+S) if we already have a path
         if (mode === 'save' && S.currentProjectPath) {
-            invoke('save_project_to_path', { state: statePayload, path: S.currentProjectPath })
+            return invoke('save_project_to_path', { state: statePayload, path: S.currentProjectPath })
                 .then(function () {
                     var name = S.currentProjectPath.replace(/\\/g, '/').split('/').pop();
                     VF.toast('Saved: ' + name);
+                    VF._isDirty = false; // Mark clean
                 })
                 .catch(function (e) {
                     console.error("Save failed", e);
                     VF.toast('Save failed');
+                    throw e;
                 });
-            return;
         }
 
         // Save As (or Save with no active path)
         var save = window.__TAURI__.dialog.save;
-
         var getDir = S.currentProjectPath ? Promise.resolve(null) : invoke('get_projects_dir');
 
-        getDir.then(function (projDir) {
+        return getDir.then(function (projDir) {
             return save({
                 title: 'Save Project',
                 defaultPath: S.currentProjectPath || (projDir + '/my_animation.json'),
                 filters: [{ name: 'Pompedin Project', extensions: ['json'] }]
             });
         }).then(function (filePath) {
-            if (!filePath) return; // User cancelled
+            if (!filePath) return Promise.reject('cancelled'); // User cancelled
 
             S.currentProjectPath = filePath; // Update the active path
 
             return invoke('save_project_to_path', { state: statePayload, path: filePath })
                 .then(function () {
                     var name = filePath.replace(/\\/g, '/').split('/').pop();
-                    VF.updateWindowTitle(); // <--- ADD THIS
+                    VF.updateWindowTitle();
                     VF.toast('Saved: ' + name);
+                    VF._isDirty = false; // Mark clean
                 });
         }).catch(function (e) {
-            console.error("Save failed", e);
-            VF.toast('Save failed');
+            if (e !== 'cancelled') {
+                console.error("Save failed", e);
+                VF.toast('Save failed');
+            }
+            throw e; // Bubble up for the close modal
         });
     };
 
@@ -118,6 +121,7 @@
             kind: 'warning'
         }).then(function (confirmed) {
             if (!confirmed) return;
+            VF._isDirty = false; // Reset to clean
 
             S.layers = [];
             for (var k in VF.pLayers) { VF.pLayers[k].remove(); delete VF.pLayers[k]; }
@@ -195,6 +199,7 @@
 
                 var name = filePath.replace(/\\/g, '/').split('/').pop();
                 VF.toast('Loaded: ' + name);
+                VF._isDirty = false; // Reset to clean
             });
         }).catch(function (err) {
             if (err) {

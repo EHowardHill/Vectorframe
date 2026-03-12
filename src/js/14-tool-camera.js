@@ -37,7 +37,7 @@
         VF.drawBorder();
     };
 
-    // Scroll-wheel zoom
+    // Scroll-wheel zoom (works with mouse and pen/touch trackpads)
     cvs.addEventListener('wheel', function (e) {
         var P = getP();
         e.preventDefault();
@@ -55,7 +55,9 @@
         VF.updateInfo(); VF.drawBorder();
     }, { passive: false });
 
-    // Global Panning (Middle-Click OR Surface Pen Side Button)
+    // ═══════════════════════════════════════════════════
+    //  Global Panning (Middle-Click OR Pen Side Button)
+    // ═══════════════════════════════════════════════════
     var isMiddlePanning = false, middlePanStart = null;
 
     $(cvs).on('pointerdown', function (e) {
@@ -83,7 +85,6 @@
 
     $(window).on('pointerup', function (e) {
         var ev = e.originalEvent;
-        // Ensure we catch the release of the right-click button
         if (isMiddlePanning && (ev.button === 1 || ev.button === 2 || ev.pointerType === 'pen')) {
             isMiddlePanning = false;
             VF.setTool(S.tool);
@@ -91,9 +92,107 @@
     });
 
     $(cvs).on('contextmenu', function (e) {
-        // Always prevent the default browser context menu over the canvas 
-        // so it doesn't pop up after a right-click pan.
         e.preventDefault();
     });
+
+    // ═══════════════════════════════════════════════════
+    //  Ctrl + Drag to Zoom (Mouse & Pen)
+    //  Works globally regardless of the active tool.
+    //  Horizontal drag = zoom in/out, anchored at the
+    //  pointer's initial project-space position.
+    // ═══════════════════════════════════════════════════
+    var isCtrlZooming = false;
+    var ctrlZoomStart = null;
+    var ctrlZoomAnchor = null;   // project-space anchor point
+    var ctrlZoomScreenAnchor = null;
+
+    $(cvs).on('pointerdown', function (e) {
+        var ev = e.originalEvent;
+        // Only trigger on primary button (left-click or pen contact) while Ctrl is held
+        if (ev.button !== 0) return;
+        if (!ev.ctrlKey && !ev.metaKey) return;
+
+        // Don't interfere if middle-pan is already active
+        if (isMiddlePanning) return;
+
+        var P = getP();
+        e.preventDefault();
+        ev.stopPropagation && ev.stopPropagation();
+
+        isCtrlZooming = true;
+        ctrlZoomStart = new P.Point(ev.clientX, ev.clientY);
+
+        // Remember the project-space point under the cursor so we can
+        // keep it visually stable while zooming (anchor zoom).
+        var rect = cvs.getBoundingClientRect();
+        var viewPt = new P.Point(ev.clientX - rect.left, ev.clientY - rect.top);
+        ctrlZoomAnchor = VF.view.viewToProject(viewPt);
+        ctrlZoomScreenAnchor = viewPt;
+
+        cvs.style.cursor = 'zoom-in';
+        cvs.setPointerCapture(ev.pointerId);
+    });
+
+    $(window).on('pointermove', function (e) {
+        if (!isCtrlZooming) return;
+
+        var P = getP();
+        var ev = e.originalEvent;
+        var currentPt = new P.Point(ev.clientX, ev.clientY);
+        var dx = currentPt.x - ctrlZoomStart.x;
+        ctrlZoomStart = currentPt;
+
+        // Positive dx (drag right) = zoom in, negative = zoom out
+        var f = 1 + dx * 0.006;
+        var newZoom = Math.max(0.05, Math.min(16, VF.view.zoom * f));
+        VF.view.zoom = newZoom;
+
+        // Re-anchor: keep the original project point under the ORIGINAL cursor position
+        if (ctrlZoomAnchor && ctrlZoomScreenAnchor) {
+            var currentProjectPt = VF.view.viewToProject(ctrlZoomScreenAnchor);
+            VF.view.center = VF.view.center.add(ctrlZoomAnchor.subtract(currentProjectPt));
+        }
+
+        cvs.style.cursor = dx >= 0 ? 'zoom-in' : 'zoom-out';
+        VF.updateInfo();
+        VF.drawBorder();
+    });
+
+    $(window).on('pointerup', function (e) {
+        if (!isCtrlZooming) return;
+        var ev = e.originalEvent;
+
+        isCtrlZooming = false;
+        ctrlZoomStart = null;
+        ctrlZoomAnchor = null;
+        ctrlZoomScreenAnchor = null;
+
+        try { cvs.releasePointerCapture(ev.pointerId); } catch (_) { }
+        VF.setTool(S.tool);   // restores the correct cursor
+    });
+
+    // ═══════════════════════════════════════════════════
+    //  Fit to Screen — Zoom so the full canvas is visible
+    //  with a small margin, centered in the viewport.
+    // ═══════════════════════════════════════════════════
+    VF.fitToScreen = function () {
+        var P = getP();
+        var canvasEl = document.getElementById('main-canvas');
+        if (!canvasEl) return;
+
+        var viewW = canvasEl.clientWidth;
+        var viewH = canvasEl.clientHeight;
+        var margin = 40; // px padding on each side
+
+        var scaleX = (viewW - margin * 2) / S.canvas.w;
+        var scaleY = (viewH - margin * 2) / S.canvas.h;
+        var newZoom = Math.max(0.05, Math.min(16, Math.min(scaleX, scaleY)));
+
+        VF.view.zoom = newZoom;
+        VF.view.center = new P.Point(S.canvas.w / 2, S.canvas.h / 2);
+
+        VF.updateInfo();
+        VF.drawBorder();
+    };
 
 })();

@@ -148,14 +148,73 @@
             console.warn("Tauri API not found. App must be run via Tauri desktop window.");
         }
 
+        // Window Close Interception
+        if (window.__TAURI__ && window.__TAURI__.window) {
+            var appWindow = window.__TAURI__.window.getCurrentWindow();
+
+            appWindow.onCloseRequested(async function (event) {
+                // ALWAYS prevent the default OS close so we control it deterministically
+                event.preventDefault();
+
+                if (VF._isDirty) {
+                    var isUntitled = !S.currentProjectPath;
+
+                    if (isUntitled) {
+                        $('#close-title').text('Unsaved File');
+                        $('#close-msg').text("You haven't saved your file yet. Are you sure you want to close and lose your work?");
+                    } else {
+                        $('#close-title').text('Unsaved Changes');
+                        $('#close-msg').text("You have unsaved changes. Do you want to save before closing?");
+                    }
+
+                    $('#btn-close-save').prop('disabled', false).text('Save & Close');
+                    $('#modal-close').css('display', 'flex'); // Flex to center properly
+                } else {
+                    // If there are no unsaved changes, explicitly destroy the window right now.
+                    // We use destroy() instead of close() to prevent an infinite loop!
+                    await appWindow.destroy();
+                }
+            });
+
+            $('#btn-close-cancel').on('click', function () {
+                $('#modal-close').hide();
+            });
+
+            $('#btn-close-nosave').on('click', async function () {
+                $('#modal-close').hide();
+                VF._isDirty = false;
+                await appWindow.destroy();
+            });
+
+            $('#btn-close-save').on('click', async function () {
+                $('#btn-close-save').prop('disabled', true).text('Saving...');
+
+                try {
+                    await VF.doSave('save');
+                    $('#modal-close').hide();
+                    await appWindow.destroy();
+                } catch (e) {
+                    // Save was cancelled or failed — restore button so they can retry
+                    $('#btn-close-save').prop('disabled', false).text('Save & Close');
+                }
+            });
+        }
+
         VF.addLayer('Layer 1', 'vector');
         VF.fitCanvas();
         VF.resetView();
         VF.uiTimeline();
         VF.render();
-        VF.setTool('brush');
-        VF.tBrush.activate();
+        VF.setTool('select');
+        VF.tSelect.activate();
         VF.toast('Pompedin ready — draw with B, select with V');
+
+        // Mark project dirty whenever history is saved (i.e. any undoable change)
+        var _origSaveHistory = VF.saveHistory;
+        VF.saveHistory = function () {
+            VF._isDirty = true;
+            return _origSaveHistory.apply(this, arguments);
+        };
 
         if (VF.updateWindowTitle) VF.updateWindowTitle();
 

@@ -161,11 +161,11 @@
 
                     <!-- ══════════ ONION SKIN — wider left column ══════════ -->
                     <div class="ribbon-group" style="min-width:440px;">
-                        <div style="display:flex;gap:8px;height:calc(100% - 14px);">
+                        <div style="display:flex;gap:8px;height:100%;">
                             <div
                                 style="display:flex;flex-direction:column;gap:5px;flex-shrink:0;justify-content:center;min-width:120px;">
-                                <div class="ribbon-row" style="height:22px;">
-                                    <span style="font-size:10px;color:var(--text-dim);margin-right:4px">Onion</span>
+                                <div class="ribbon-row" style="height:26px;">
+                                    <span style="font-size:10px;color:var(--text-dim);width:36px">Onion</span>
                                     <div class="tgl" id="tgl-onion"></div>
                                 </div>
                                 <div class="ribbon-row" style="height:22px;">
@@ -554,11 +554,11 @@
         </div>
 
         <div id="left-tools">
-            <button class="tb tb-sidebar active" data-tool="brush" data-tip="Brush (B)">
-                <i class="fa-solid fa-paintbrush"></i><span>Brush</span>
-            </button>
-            <button class="tb tb-sidebar" data-tool="select" data-tip="Select / Edit Vertices (V)">
+            <button class="tb tb-sidebar active" data-tool="select" data-tip="Select / Edit Vertices (V)">
                 <i class="fa-solid fa-arrow-pointer"></i><span>Select</span>
+            </button>
+            <button class="tb tb-sidebar" data-tool="brush" data-tip="Brush (B)">
+                <i class="fa-solid fa-paintbrush"></i><span>Brush</span>
             </button>
             <button class="tb tb-sidebar" data-tool="lasso" data-tip="Lasso Select (L)">
                 <i class="fa-solid fa-draw-polygon"></i><span>Lasso</span>
@@ -592,6 +592,9 @@
             </button>
             <button class="tb tb-sidebar" id="btn-resetview" data-tip="Reset View">
                 <i class="fa-solid fa-compress"></i><span>Reset View</span>
+            </button>
+            <button class="tb tb-sidebar" id="btn-fitscreen" data-tip="Fit to Screen (Ctrl+0)">
+                <i class="fa-solid fa-up-right-and-down-left-from-center"></i><span>Fit Screen</span>
             </button>
         </div>
 
@@ -871,7 +874,8 @@
                     <h2 id="help-basics">1. Getting Started</h2>
                     <p>Pompedin is a vector-based 2D animation tool. Pompedin separates your drawings into
                         <b>Keyframes</b> on a timeline. When you draw on a blank frame, a new keyframe is automatically
-                        created.</p>
+                        created.
+                    </p>
                     <p>Use the <b>Workspace</b> tab to customize the application theme, and the <b>Project</b> tab to
                         adjust your canvas size, frame rate (FPS), and total animation length.</p>
 
@@ -893,7 +897,8 @@
                             Move, Scale, and Rotate the object.</li>
                         <li><b>Vertex Mode:</b> Double-click a selected shape to reveal its anchor points. You can drag
                             individual points or adjust their Bézier handles to fine-tune the curve. Press
-                            <kbd>Esc</kbd> or click empty space to exit.</li>
+                            <kbd>Esc</kbd> or click empty space to exit.
+                        </li>
                     </ul>
 
                     <h2 id="help-layers">4. Layers & Timeline</h2>
@@ -933,11 +938,36 @@
                         <li><kbd>Ctrl</kbd> + <kbd>Y</kbd> - Redo</li>
                         <li><kbd>Ctrl</kbd> + <kbd>S</kbd> - Save Project</li>
                         <li><kbd>Ctrl</kbd> + <kbd>C</kbd> / <kbd>V</kbd> - Copy / Paste items (or frames)</li>
+                        <li><kbd>Ctrl</kbd> + <kbd>0</kbd> - Fit to Screen</li>
+                        <li><kbd>Ctrl</kbd> + <kbd>Drag</kbd> - Zoom (anchored at cursor)</li>
+                        <li><kbd>Left Alt</kbd> - Pick Stroke Color (Eyedropper)</li>
+                        <li><kbd>Right Alt</kbd> - Pick Fill Color (Eyedropper)</li>
+                        <li><kbd>[</kbd> / <kbd>]</kbd> - Decrease / Increase Stroke Size (hold <kbd>Shift</kbd> for x5)
+                        </li>
+                        <li><kbd>Shift</kbd> + <kbd>H</kbd> - Toggle Horizontal Symmetry</li>
+                        <li><kbd>Shift</kbd> + <kbd>V</kbd> - Toggle Vertical Symmetry</li>
+                        <li><kbd>↑</kbd> / <kbd>↓</kbd> - Select Layer Above / Below</li>
                         <li><kbd>Delete</kbd> - Delete selected items</li>
                         <li><kbd>Enter</kbd> - Play / Pause Animation</li>
                         <li><kbd>←</kbd> / <kbd>→</kbd> - Previous / Next Frame</li>
                     </ul>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-close" class="mo-ov" style="display:none; z-index: 10000;">
+        <div class="mo-box" style="min-width:380px; max-width:440px; text-align:center;">
+            <div class="mo-title" id="close-title" style="margin-bottom: 8px; font-size: 16px;">Unsaved Changes</div>
+            <div style="font-size:12px; color:var(--text-secondary); margin-bottom:24px; line-height:1.5"
+                id="close-msg">
+                You have unsaved changes. Do you want to save before closing?
+            </div>
+            <div style="display:flex; justify-content:center; gap:12px">
+                <button class="btn" id="btn-close-cancel">Cancel</button>
+                <button class="btn" id="btn-close-nosave"
+                    style="color:var(--warning); border-color:rgba(218,42,0,0.3);">Close Without Saving</button>
+                <button class="btn btn-p" id="btn-close-save">Save & Close</button>
             </div>
         </div>
     </div>

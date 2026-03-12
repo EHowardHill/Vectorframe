@@ -266,6 +266,13 @@
                 return;
             }
 
+            /* Ctrl+0 — Fit to Screen */
+            if (e.key === '0') {
+                e.preventDefault();
+                if (VF.fitToScreen) VF.fitToScreen();
+                return;
+            }
+
             if (e.key.toLowerCase() === 'x') {
                 e.preventDefault();
                 if (VF.selSegments.length > 0) {
@@ -317,12 +324,67 @@
         }
 
         var k = e.key.toLowerCase();
+
+        /* ── Alt key — Eyedropper ──
+                   Left Alt  (location 1) → pick Stroke color
+                   Right Alt (location 2) → pick Fill color
+                   Plain Alt (location 0, e.g. some keyboards) → Stroke */
+        if (e.key === 'Alt') {
+            e.preventDefault();
+
+            if (e.repeat) return; // <--- ADD THIS LINE
+
+            if (e.location === 2) {
+                VF.pickScreenColor('#clr-fill');
+            } else {
+                VF.pickScreenColor('#clr-stroke');
+            }
+            return;
+        }
+
+        /* ── Bracket keys — Stroke size ──
+           [  = decrease,  ]  = increase
+           Hold Shift for larger steps (×5) */
+        if (e.key === '[' || e.key === ']') {
+            e.preventDefault();
+            var step = e.shiftKey ? 5 : 1;
+            var newSize = S.cfg.brushSize + (e.key === ']' ? step : -step);
+            newSize = Math.max(1, Math.min(60, newSize));
+            S.cfg.brushSize = newSize;
+            $('#rng-brush').val(newSize);
+            $('#v-brush').val(newSize);
+            if (VF.hasSelection && VF.hasSelection()) {
+                VF.applyPropertyToSelection('brushSize', newSize);
+            }
+            return;
+        }
+
+        /* ── Mirror Canvas toggles ──
+           Shift+H = toggle horizontal symmetry
+           Shift+V = toggle vertical symmetry */
+        if (e.shiftKey && k === 'h') {
+            e.preventDefault();
+            S.cfg.symmetryH = !S.cfg.symmetryH;
+            $('#tgl-sym-h').toggleClass('on', S.cfg.symmetryH);
+            VF.render();
+            VF.toast('Horizontal symmetry ' + (S.cfg.symmetryH ? 'ON' : 'OFF'));
+            return;
+        }
+        if (e.shiftKey && k === 'v') {
+            e.preventDefault();
+            S.cfg.symmetryV = !S.cfg.symmetryV;
+            $('#tgl-sym-v').toggleClass('on', S.cfg.symmetryV);
+            VF.render();
+            VF.toast('Vertical symmetry ' + (S.cfg.symmetryV ? 'ON' : 'OFF'));
+            return;
+        }
+
         if (k === 'b') VF.setTool('brush');
-        else if (k === 'v') VF.setTool('select');
+        else if (k === 'v' && !e.shiftKey) VF.setTool('select');
         else if (k === 'l') VF.setTool('lasso');
         else if (k === 'e') VF.setTool('eraser');
         else if (k === 'g') VF.setTool('fill');
-        else if (k === 'h' && !e.ctrlKey) VF.setTool('hide-edge');
+        else if (k === 'h' && !e.ctrlKey && !e.shiftKey) VF.setTool('hide-edge');
         else if (k === 't') VF.setTool('translate');
         else if (k === 'r' && !e.ctrlKey) VF.setTool('rotate');
         else if (k === 's' && !e.ctrlKey && !e.metaKey) VF.setTool('scale');
@@ -330,6 +392,21 @@
         else if (k === ' ') { e.preventDefault(); if (!spaceHeld) { spaceHeld = true; preSpaceTool = S.tool; VF.setTool('pan'); } }
         else if (k === 'arrowright') { e.preventDefault(); VF.goFrame(S.tl.frame + 1); }
         else if (k === 'arrowleft') { e.preventDefault(); VF.goFrame(S.tl.frame - 1); }
+        else if (k === 'arrowup' || k === 'arrowdown') {
+            e.preventDefault();
+            /* Layers are displayed sorted by descending z (top = highest z).
+               "Up" selects the layer above (lower index), "down" selects below. */
+            var sorted = [].concat(S.layers).sort(function (a, b) { return b.z - a.z; });
+            var curIdx = sorted.findIndex(function (l) { return l.id === S.activeId; });
+            if (curIdx === -1) return;
+            var nextIdx = k === 'arrowup' ? curIdx - 1 : curIdx + 1;
+            if (nextIdx < 0 || nextIdx >= sorted.length) return;
+            S.activeId = sorted[nextIdx].id;
+            VF.selSegments = [];
+            VF.clearHandles();
+            VF.uiLayers();
+            VF.render();
+        }
         else if (k === 'enter') { e.preventDefault(); VF.togglePlay(); }
         else if (k === 'f6') { e.preventDefault(); $('#btn-add-blank').click(); }
         else if (k === 'f7') { e.preventDefault(); $('#btn-add-dup').click(); }

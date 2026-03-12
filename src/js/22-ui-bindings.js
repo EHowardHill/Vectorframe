@@ -5,6 +5,7 @@
 
     $('#left-tools .tb[data-tool]').on('click', function () { VF.setTool($(this).data('tool')); });
     $('#btn-resetview').on('click', VF.resetView);
+    $('#btn-fitscreen').on('click', function () { if (VF.fitToScreen) VF.fitToScreen(); });
 
     $('#tgl-pressure').on('click', function () {
         S.cfg.pressure = !S.cfg.pressure;
@@ -136,21 +137,62 @@
         }
     });
 
-    function pickScreenColor(targetInputId) {
+    /* ═══════════════════════════════════════════════════
+       EYEDROPPER COLOR PICKER  (with AbortController)
+       ═══════════════════════════════════════════════════
+       - VF.pickScreenColor(target)  opens the picker
+       - VF.abortEyeDropper()        cancels it early
+       Abort is wired to canvas pointerdown so the picker
+       closes automatically when a paint stroke begins.
+       ═══════════════════════════════════════════════════ */
+
+    VF._eyeDropperAbort = null;
+
+    VF.pickScreenColor = function (targetInputId) {
         if (!window.EyeDropper) {
             VF.toast("EyeDropper API is not supported in this browser.");
             return;
         }
-        const eyeDropper = new EyeDropper();
-        eyeDropper.open().then(result => {
-            $(targetInputId).val(result.sRGBHex).trigger('input');
-        }).catch(e => {
-            console.log("Eyedropper canceled:", e);
-        });
-    }
 
-    $('#btn-pick-stroke').on('click', function () { pickScreenColor('#clr-stroke'); });
-    $('#btn-pick-fill').on('click', function () { pickScreenColor('#clr-fill'); });
+        // Cancel any already-open picker before opening a new one
+        VF.abortEyeDropper();
+
+        var controller = new AbortController();
+        VF._eyeDropperAbort = controller;
+
+        var eyeDropper = new EyeDropper();
+        eyeDropper.open({ signal: controller.signal }).then(function (result) {
+            VF._eyeDropperAbort = null;
+            $(targetInputId).val(result.sRGBHex).trigger('input');
+        }).catch(function (e) {
+            VF._eyeDropperAbort = null;
+            // DOMException "AbortError" is expected when we cancel programmatically
+            if (e.name !== 'AbortError') {
+                console.log("Eyedropper canceled:", e);
+            }
+        });
+    };
+
+    VF.abortEyeDropper = function () {
+        if (VF._eyeDropperAbort) {
+            VF._eyeDropperAbort.abort();
+            VF._eyeDropperAbort = null;
+        }
+    };
+
+    /* Close the eyedropper whenever a canvas interaction begins
+       (pointerdown fires for mouse, pen, and touch). */
+    $(document).ready(function () {
+        var cvs = document.getElementById('main-canvas');
+        if (cvs) {
+            cvs.addEventListener('pointerdown', function () {
+                VF.abortEyeDropper();
+            }, true);   // capture phase so it fires before Paper.js tools
+        }
+    });
+
+    $('#btn-pick-stroke').on('click', function () { VF.pickScreenColor('#clr-stroke'); });
+    $('#btn-pick-fill').on('click', function () { VF.pickScreenColor('#clr-fill'); });
 
     // Z-Order: Bring to Front / Push to Back
     $('#btn-zfront').on('click', function () {
