@@ -31,7 +31,8 @@
         ],
         tool: 'select',
         audioData: null,
-        audioFilename: null
+        audioFilename: null,
+        camera: { frames: {} }
     };
 
     VF.AL = function () { return VF.S.layers.find(l => l.id === VF.S.activeId); };

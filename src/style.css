@@ -882,6 +882,11 @@ input[type="range"]::-webkit-slider-thumb {
     z-index: 2;
 }
 
+.tl-dot.keyframe.tween {
+    background: var(--success);
+    border-color: var(--success);
+}
+
 /* Exposure Bar (The held frame) */
 .tl-exposure {
     position: absolute;
@@ -1132,4 +1137,34 @@ input[type="range"]::-webkit-slider-thumb {
 .help-content::-webkit-scrollbar-thumb {
     background: var(--text-dim);
     border-radius: 3px;
+}
+
+/* ═══════════════════════════════════════════════════
+   CAMERA TIMELINE ROW
+   ═══════════════════════════════════════════════════ */
+.tl-cam-row {
+    background: rgba(255, 51, 102, 0.04);
+}
+
+.tl-cam-label {
+    height: 24px;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    font-size: 10px;
+    color: #ff3366;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background: rgba(255, 51, 102, 0.06);
+}
+
+.cam-dot {
+    border-color: #ff3366 !important;
+    background: var(--bg-dark) !important;
+}
+
+.cam-dot.keyframe {
+    border: 2px solid #ff3366;
 }

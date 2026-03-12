@@ -4,11 +4,6 @@
     var S = VF.S, P;
     function getP() { if (!P) P = VF.P; return P; }
 
-    /* ═══════════════════════════════════════════════════
-       MODE STATE
-       'object'  — bounding-box gizmo (rotate/scale/translate)
-       'vertex'  — individual point & Bézier handle editing
-       ═══════════════════════════════════════════════════ */
     VF.selectMode = 'object';
 
     VF.exitVertexMode = function () {
@@ -17,11 +12,6 @@
             VF.showHandles();
         }
     };
-
-
-    /* ═══════════════════════════════════════════════════
-       TEXTURE HELPERS
-       ═══════════════════════════════════════════════════ */
 
     VF.rebuildTextureRaster = function (c) {
         var P = getP();
@@ -77,7 +67,6 @@
         }
     };
 
-    /* ── Throttled texture rebuild ── */
     var TEX_REBUILD_INTERVAL = 100;
     var lastTexRebuild = 0;
     var pendingTexGroups = new Set();
@@ -90,11 +79,6 @@
         pendingTexGroups.forEach(function (grp) { VF.rebuildTextureRaster(grp); });
         if (force) pendingTexGroups.clear();
     }
-
-
-    /* ═══════════════════════════════════════════════════
-       GIZMO  — object-mode bounding box handles
-       ═══════════════════════════════════════════════════ */
 
     var gizmoEntries = [];
     var gizmoBounds = null;
@@ -130,13 +114,31 @@
         pushG(rc, action, cursor, anchor);
     }
 
+    // Maps local layer bounds into the global workspace coordinate space so the UI renders squarely.
+    function getGlobalBounds(bounds, matrix) {
+        if (!matrix) return bounds;
+        var P = getP();
+        var pts = [
+            matrix.transform(bounds.topLeft), matrix.transform(bounds.topRight),
+            matrix.transform(bounds.bottomLeft), matrix.transform(bounds.bottomRight)
+        ];
+        var minX = pts[0].x, maxX = pts[0].x, minY = pts[0].y, maxY = pts[0].y;
+        for (var i = 1; i < 4; i++) {
+            if (pts[i].x < minX) minX = pts[i].x; if (pts[i].x > maxX) maxX = pts[i].x;
+            if (pts[i].y < minY) minY = pts[i].y; if (pts[i].y > maxY) maxY = pts[i].y;
+        }
+        return new P.Rectangle(new P.Point(minX, minY), new P.Point(maxX, maxY));
+    }
+
     function computeBounds() {
         var items = VF.getSelectedItems();
         if (items.length === 0) return null;
         var b = null;
+        var pl = VF.pLayers[S.activeId];
         items.forEach(function (it) {
-            if (!b) b = it.bounds.clone();
-            else b = b.unite(it.bounds);
+            var globalBox = getGlobalBounds(it.bounds, pl ? pl.matrix : null);
+            if (!b) b = globalBox.clone();
+            else b = b.unite(globalBox);
         });
         return b;
     }
@@ -150,8 +152,7 @@
 
         pushG(new P.Path.Rectangle({
             point: b.topLeft, size: b.size,
-            strokeColor: '#4a6fff', strokeWidth: 1 / z,
-            dashArray: [5 / z, 3 / z]
+            strokeColor: '#4a6fff', strokeWidth: 1 / z, dashArray: [5 / z, 3 / z]
         }), null, null);
 
         var rotDist = 24 / z;
@@ -183,29 +184,26 @@
         pushG(new P.Path.Line({ from: [cx.x, cx.y - cs], to: [cx.x, cx.y + cs], strokeColor: '#ff9500', strokeWidth: 1.2 / z }), null, null);
     }
 
-
-    /* ═══════════════════════════════════════════════════
-       VERTEX HANDLES
-       ═══════════════════════════════════════════════════ */
-
     function drawVertexHandles() {
         var P = getP();
         var z = VF.view.zoom;
+        var pl = VF.pLayers[S.activeId];
 
         VF.selSegments.forEach(function (seg, i) {
+            var ptGlobal = pl ? pl.localToGlobal(seg.point) : seg.point;
             var d = new P.Path.Circle({
-                center: seg.point, radius: 4.5 / z,
+                center: ptGlobal, radius: 4.5 / z,
                 fillColor: '#4a6fff', strokeColor: '#fff', strokeWidth: 1 / z
             });
             d._hIdx = i; d._hType = 'pt'; d._isH = true; d._seg = seg;
             VF.selHandles.push(d);
 
             if (seg.handleIn.length > 0.1) {
-                var hpt = seg.point.add(seg.handleIn);
-                var line1 = new P.Path.Line({ from: seg.point, to: hpt, strokeColor: '#ff9500', strokeWidth: 1 / z });
+                var hInGlobal = pl ? pl.localToGlobal(seg.point.add(seg.handleIn)) : seg.point.add(seg.handleIn);
+                var line1 = new P.Path.Line({ from: ptGlobal, to: hInGlobal, strokeColor: '#ff9500', strokeWidth: 1 / z });
                 line1._isH = true; VF.selHandles.push(line1);
                 var hd = new P.Path.Circle({
-                    center: hpt, radius: 3.5 / z,
+                    center: hInGlobal, radius: 3.5 / z,
                     fillColor: '#ff9500', strokeColor: '#fff', strokeWidth: .6 / z
                 });
                 hd._hIdx = i; hd._hType = 'hIn'; hd._isH = true; hd._seg = seg;
@@ -213,11 +211,11 @@
             }
 
             if (seg.handleOut.length > 0.1) {
-                var hpt2 = seg.point.add(seg.handleOut);
-                var line2 = new P.Path.Line({ from: seg.point, to: hpt2, strokeColor: '#34c759', strokeWidth: 1 / z });
+                var hOutGlobal = pl ? pl.localToGlobal(seg.point.add(seg.handleOut)) : seg.point.add(seg.handleOut);
+                var line2 = new P.Path.Line({ from: ptGlobal, to: hOutGlobal, strokeColor: '#34c759', strokeWidth: 1 / z });
                 line2._isH = true; VF.selHandles.push(line2);
                 var hd2 = new P.Path.Circle({
-                    center: hpt2, radius: 3.5 / z,
+                    center: hOutGlobal, radius: 3.5 / z,
                     fillColor: '#34c759', strokeColor: '#fff', strokeWidth: .6 / z
                 });
                 hd2._hIdx = i; hd2._hType = 'hOut'; hd2._isH = true; hd2._seg = seg;
@@ -228,25 +226,19 @@
         if (VF.selSegments.length > 1) {
             var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
             VF.selSegments.forEach(function (seg) {
-                minX = Math.min(minX, seg.point.x); minY = Math.min(minY, seg.point.y);
-                maxX = Math.max(maxX, seg.point.x); maxY = Math.max(maxY, seg.point.y);
+                var pg = pl ? pl.localToGlobal(seg.point) : seg.point;
+                minX = Math.min(minX, pg.x); minY = Math.min(minY, pg.y);
+                maxX = Math.max(maxX, pg.x); maxY = Math.max(maxY, pg.y);
             });
             var pad = 6 / z;
             var br = new P.Path.Rectangle({
                 point: [minX - pad, minY - pad],
                 size: [(maxX - minX) + pad * 2, (maxY - minY) + pad * 2],
-                strokeColor: 'rgba(74, 111, 255, 0.4)',
-                strokeWidth: 1 / z,
-                dashArray: [4 / z, 4 / z]
+                strokeColor: 'rgba(74, 111, 255, 0.4)', strokeWidth: 1 / z, dashArray: [4 / z, 4 / z]
             });
             br._isH = true; VF.selHandles.push(br);
         }
     }
-
-
-    /* ═══════════════════════════════════════════════════
-       UNIFIED clearHandles / showHandles
-       ═══════════════════════════════════════════════════ */
 
     VF.clearHandles = function () {
         clearGizmo();
@@ -261,19 +253,11 @@
 
         VF.fgLayer.activate();
 
-        if (VF.selectMode === 'vertex') {
-            drawVertexHandles();
-        } else {
-            drawGizmo();
-        }
+        if (VF.selectMode === 'vertex') drawVertexHandles();
+        else drawGizmo();
 
         if (VF.pLayers[S.activeId]) VF.pLayers[S.activeId].activate();
     };
-
-
-    /* ═══════════════════════════════════════════════════
-       GIZMO HIT TESTING  (object mode)
-       ═══════════════════════════════════════════════════ */
 
     function hitGizmo(pt) {
         for (var i = gizmoEntries.length - 1; i >= 0; i--) {
@@ -301,10 +285,6 @@
         return false;
     }
 
-    /* ═══════════════════════════════════════════════════
-       VERTEX HANDLE HIT TESTING
-       ═══════════════════════════════════════════════════ */
-
     function hitVertexHandle(pt) {
         for (var i = VF.selHandles.length - 1; i >= 0; i--) {
             var h = VF.selHandles[i];
@@ -313,11 +293,6 @@
         }
         return null;
     }
-
-
-    /* ═══════════════════════════════════════════════════
-       OBJECT-MODE TRANSFORM ENGINE (drift-free)
-       ═══════════════════════════════════════════════════ */
 
     var gAction = null, gAnchor = null, gCenter = null, gStartAng = null;
     var gOrigBounds = null, gOrigSegs = [], gOrigTex = [], gOrigRasters = [];
@@ -355,44 +330,60 @@
     }
 
     function applyTranslate(delta) {
-        VF.selSegments.forEach(function (seg) { seg.point = seg.point.add(delta); });
+        var P = getP();
+        var pl = VF.pLayers[S.activeId];
+
+        // Downscale the global e.delta vector to match the layer's local scale
+        var localDelta = delta;
+        if (pl && pl.matrix) {
+            localDelta = pl.globalToLocal(delta).subtract(pl.globalToLocal(new P.Point(0, 0)));
+        }
+
+        VF.selSegments.forEach(function (seg) { seg.point = seg.point.add(localDelta); });
         VF.getSelectedItems().forEach(function (item) {
-            if (item.data && item.data.isTextureStroke) VF.syncTextureGroup(item, 'translate', delta);
+            if (item.data && item.data.isTextureStroke) VF.syncTextureGroup(item, 'translate', localDelta);
         });
     }
 
     function applyScale(sx, sy, anchor) {
         var P = getP();
+        var pl = VF.pLayers[S.activeId];
+        var localAnchor = pl ? pl.globalToLocal(anchor) : anchor;
+
         gOrigSegs.forEach(function (o) {
-            var rel = o.point.subtract(anchor);
-            o.seg.point = new P.Point(rel.x * sx, rel.y * sy).add(anchor);
+            var rel = o.point.subtract(localAnchor);
+            o.seg.point = new P.Point(rel.x * sx, rel.y * sy).add(localAnchor);
             o.seg.handleIn = new P.Point(o.hIn.x * sx, o.hIn.y * sy);
             o.seg.handleOut = new P.Point(o.hOut.x * sx, o.hOut.y * sy);
         });
         gOrigTex.forEach(function (td) {
             var pts = td.group.data.pressurePoints;
             td.pts.forEach(function (orig, i) {
-                var rel = new P.Point(orig.x, orig.y).subtract(anchor);
-                pts[i].x = rel.x * sx + anchor.x; pts[i].y = rel.y * sy + anchor.y;
+                var rel = new P.Point(orig.x, orig.y).subtract(localAnchor);
+                pts[i].x = rel.x * sx + localAnchor.x; pts[i].y = rel.y * sy + localAnchor.y;
                 pts[i].width = orig.width * (Math.abs(sx) + Math.abs(sy)) / 2;
             });
             pendingTexGroups.add(td.group);
         });
-        gOrigRasters.forEach(function (or) { or.raster.matrix = or.matrix.clone(); or.raster.scale(sx, sy, anchor); });
+        gOrigRasters.forEach(function (or) { or.raster.matrix = or.matrix.clone(); or.raster.scale(sx, sy, localAnchor); });
     }
 
     function applyRotate(totalAngle, center) {
         var P = getP();
+        var pl = VF.pLayers[S.activeId];
+        var localCenter = pl ? pl.globalToLocal(center) : center;
+
         var rad = totalAngle * Math.PI / 180, cos = Math.cos(rad), sin = Math.sin(rad);
-        function rPt(pt) { var rx = pt.x - center.x, ry = pt.y - center.y; return new P.Point(rx * cos - ry * sin + center.x, rx * sin + ry * cos + center.y); }
+        function rPt(pt) { var rx = pt.x - localCenter.x, ry = pt.y - localCenter.y; return new P.Point(rx * cos - ry * sin + localCenter.x, rx * sin + ry * cos + localCenter.y); }
         function rVec(v) { return new P.Point(v.x * cos - v.y * sin, v.x * sin + v.y * cos); }
+
         gOrigSegs.forEach(function (o) { o.seg.point = rPt(o.point); o.seg.handleIn = rVec(o.hIn); o.seg.handleOut = rVec(o.hOut); });
         gOrigTex.forEach(function (td) {
             var pts = td.group.data.pressurePoints;
             td.pts.forEach(function (orig, i) { var np = rPt(new P.Point(orig.x, orig.y)); pts[i].x = np.x; pts[i].y = np.y; pts[i].angle = orig.angle + totalAngle; });
             pendingTexGroups.add(td.group);
         });
-        gOrigRasters.forEach(function (or) { or.raster.matrix = or.matrix.clone(); or.raster.rotate(totalAngle, center); });
+        gOrigRasters.forEach(function (or) { or.raster.matrix = or.matrix.clone(); or.raster.rotate(totalAngle, localCenter); });
     }
 
     function getOrigHandle(dir) {
@@ -415,11 +406,6 @@
         VF.showHandles();
     }
 
-
-    /* ═══════════════════════════════════════════════════
-       HELPERS
-       ═══════════════════════════════════════════════════ */
-
     function selectItem(item, additive) {
         if (!additive) VF.selSegments = [];
         (function walk(it) {
@@ -435,11 +421,9 @@
         return t;
     }
 
-    /** Notify UI of new selection */
     function notifySelectionChanged() {
         if (VF.syncUIFromSelection) VF.syncUIFromSelection();
     }
-
 
     /* ═══════════════════════════════════════════════════
        SELECT TOOL
@@ -456,7 +440,6 @@
     var vDragH = null;
     var vSaved = false;
 
-    /* ── MOUSE DOWN ── */
     tSelect.onMouseDown = function (e) {
         gAction = null; gSaved = false; gDragged = false;
         vDragH = null; vSaved = false;
@@ -466,7 +449,6 @@
         var P = getP();
         var pl = VF.pLayers[S.activeId]; if (!pl) return;
 
-        /* ── Double-click detection ── */
         var now = Date.now();
         var isDoubleClick = false;
         if (lastClickPoint && now - lastClickTime < DBLCLICK_MS) {
@@ -476,10 +458,7 @@
         lastClickTime = now;
         lastClickPoint = e.point.clone();
 
-
-        /* ═══ VERTEX MODE ═══ */
         if (VF.selectMode === 'vertex') {
-
             var vh = hitVertexHandle(e.point);
             if (vh) { vDragH = vh; return; }
 
@@ -503,9 +482,6 @@
             VF.clearHandles();
         }
 
-
-        /* ═══ OBJECT MODE ═══ */
-
         if (isDoubleClick && VF.selSegments.length > 0) {
             var hitDbl = pl.hitTest(e.point, { stroke: true, fill: true, segments: true, tolerance: 8 / VF.view.zoom });
             if (hitDbl && hitDbl.item && !hitDbl.item._isH && isItemSelected(hitDbl.item)) {
@@ -515,7 +491,6 @@
             }
         }
 
-        /* 1) Gizmo handle hit? */
         var gh = hitGizmo(e.point);
         if (gh) {
             gAction = gh.action;
@@ -526,7 +501,6 @@
             return;
         }
 
-        /* 2) Layer hit test */
         var hit2 = pl.hitTest(e.point, { stroke: true, fill: true, segments: true, tolerance: 8 / VF.view.zoom });
         if (hit2 && hit2.item && !hit2.item._isH) {
             var target = resolveTarget(hit2.item);
@@ -542,24 +516,21 @@
             }
         }
 
-        /* 3) Inside gizmo bounds? → translate */
         if (insideGizmo(e.point)) {
             gAction = 'translate-pending';
             return;
         }
 
-        /* 4) Nothing → deselect */
         if (!e.event.shiftKey) {
             VF.selSegments = [];
             VF.clearHandles();
         }
     };
 
-
-    /* ── MOUSE DRAG ── */
     tSelect.onMouseDrag = function (e) {
         if (VF.isPanInput(e.event)) return;
         var P = getP();
+        var pl = VF.pLayers[S.activeId];
 
         /* ═══ VERTEX MODE DRAG ═══ */
         if (VF.selectMode === 'vertex') {
@@ -568,13 +539,20 @@
             }
             if (vDragH && vDragH._seg) {
                 var seg = vDragH._seg;
-                if (vDragH._hType === 'pt') seg.point = seg.point.add(e.delta);
-                else if (vDragH._hType === 'hIn') seg.handleIn = seg.handleIn.add(e.delta);
-                else if (vDragH._hType === 'hOut') seg.handleOut = seg.handleOut.add(e.delta);
+
+                // Convert project e.delta to local space delta
+                var localDelta = e.delta;
+                if (pl && pl.matrix) {
+                    localDelta = pl.globalToLocal(e.delta).subtract(pl.globalToLocal(new P.Point(0, 0)));
+                }
+
+                if (vDragH._hType === 'pt') seg.point = seg.point.add(localDelta);
+                else if (vDragH._hType === 'hIn') seg.handleIn = seg.handleIn.add(localDelta);
+                else if (vDragH._hType === 'hOut') seg.handleOut = seg.handleOut.add(localDelta);
 
                 var texGrp = seg.path && seg.path.parent;
                 if (texGrp && texGrp.data && texGrp.data.isTextureStroke) {
-                    if (vDragH._hType === 'pt') VF.syncTextureGroup(texGrp, 'translate', e.delta);
+                    if (vDragH._hType === 'pt') VF.syncTextureGroup(texGrp, 'translate', localDelta);
                     pendingTexGroups.add(texGrp);
                 }
                 flushTexRebuilds(false);
@@ -626,8 +604,6 @@
         }
     };
 
-
-    /* ── MOUSE UP ── */
     tSelect.onMouseUp = function (e) {
         if (VF.isPanInput(e.event)) return;
 
@@ -654,8 +630,6 @@
         gOrigSegs = []; gOrigTex = []; gOrigRasters = [];
     };
 
-
-    /* ── MOUSE MOVE (cursor feedback) ── */
     tSelect.onMouseMove = function (e) {
         if (S.tool !== 'select') return;
         var cvs = VF.cvs;
@@ -671,7 +645,6 @@
         if (insideGizmo(e.point) && VF.selSegments.length > 0) { cvs.style.cursor = 'move'; return; }
         cvs.style.cursor = 'default';
     };
-
 
     /* ═══════════════════════════════════════════════════
        LASSO TOOL

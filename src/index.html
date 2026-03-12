@@ -159,6 +159,41 @@
                      ═══════════════════════════════════════════ -->
                 <div id="tab-tools" class="ribbon-panel">
 
+                    <!-- ══════════ CAMERA ══════════ -->
+                    <div class="ribbon-group" style="min-width:220px;">
+                        <div class="ribbon-row">
+                            <span style="font-size:10px;color:var(--text-dim);width:16px">X</span>
+                            <input class="sm-in" id="cam-x" type="number" step="1" value="320" style="width:50px">
+                            <span style="font-size:10px;color:var(--text-dim);width:16px;margin-left:4px">Y</span>
+                            <input class="sm-in" id="cam-y" type="number" step="1" value="240" style="width:50px">
+                        </div>
+                        <div class="ribbon-row">
+                            <span style="font-size:10px;color:var(--text-dim);width:16px">Z</span>
+                            <input class="sm-in" id="cam-zoom" type="number" min="10" max="1000" step="5" value="100"
+                                style="width:50px" title="Zoom %">
+                            <span style="font-size:9px;color:var(--text-dim)">%</span>
+                            <span style="font-size:10px;color:var(--text-dim);width:16px;margin-left:4px">R</span>
+                            <input class="sm-in" id="cam-rot" type="number" step="1" value="0" style="width:42px"
+                                title="Rotation °">
+                            <span style="font-size:9px;color:var(--text-dim)">°</span>
+                        </div>
+                        <div class="ribbon-row">
+                            <button class="tb tb-wide" id="btn-cam-setkey"
+                                style="font-size:10px;height:22px;padding:0 6px;color:var(--accent)">◆ Set Key</button>
+                            <button class="tb tb-wide" id="btn-cam-delkey"
+                                style="font-size:10px;height:22px;padding:0 6px;color:var(--warning);margin-left:2px">×
+                                Del Key</button>
+                            <button class="tb tb-wide" id="btn-cam-reset"
+                                style="font-size:10px;height:22px;padding:0 6px;margin-left:2px">Reset</button>
+                            <button class="tb tb-wide" id="btn-cam-clear-all"
+                                style="font-size:10px;height:22px;padding:0 6px;color:var(--warning);margin-left:2px">Clear
+                                All</button>
+                        </div>
+                        <div class="ribbon-group-label">Camera</div>
+                    </div>
+
+                    <div class="div-v-ribbon"></div>
+
                     <!-- ══════════ ONION SKIN — wider left column ══════════ -->
                     <div class="ribbon-group" style="min-width:440px;">
                         <div style="display:flex;gap:8px;height:100%;">
@@ -584,11 +619,15 @@
                 <i class="fa-solid fa-expand"></i><span>Scale</span>
             </button>
             <div class="div-v"></div>
-            <button class="tb tb-sidebar" data-tool="pan" data-tip="Pan View (Space / Middle Mouse)">
-                <i class="fa-solid fa-hand"></i><span>Pan</span>
+            <button class="tb tb-sidebar" data-tool="camera" data-tip="Camera Tool (C)">
+                <i class="fa-solid fa-video"></i><span>Camera</span>
             </button>
+            <div class="div-v"></div>
             <button class="tb tb-sidebar" data-tool="zoom" data-tip="Zoom (Z / Scroll)">
                 <i class="fa-solid fa-magnifying-glass"></i><span>Zoom</span>
+            </button>
+            <button class="tb tb-sidebar" data-tool="rotate-view" data-tip="Rotate Workspace (Shift+R)">
+                <i class="fa-solid fa-rotate"></i><span>Rotate View</span>
             </button>
             <button class="tb tb-sidebar" id="btn-resetview" data-tip="Reset View">
                 <i class="fa-solid fa-compress"></i><span>Reset View</span>
@@ -831,6 +870,7 @@
         <div class="ctx-i" data-act="copy-frame">Copy Keyframe</div>
         <div class="ctx-i" data-act="paste-frame">Paste Keyframe</div>
         <div class="ctx-i" data-act="toggle-loop">Toggle Loop ◎</div>
+        <div class="ctx-i" data-act="toggle-tween" style="color:var(--success)">Toggle Tween ⤍</div>
         <hr style="margin:4px 0; border:none; border-top:1px solid var(--border)">
         <div class="ctx-i" data-act="delete-keyframe">Delete Keyframe</div>
         <div class="ctx-i" data-act="clear-exposure">Clear Exposure (Cut)</div>
@@ -1005,6 +1045,7 @@
     <script src="js/31-about.js"></script>
     <script src="js/32-export-advanced.js"></script>
     <script src="js/33-tools-advanced.js"></script>
+    <script src="js/34-camera.js"></script>
 </body>
 
 </html>

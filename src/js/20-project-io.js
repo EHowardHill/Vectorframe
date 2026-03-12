@@ -16,7 +16,8 @@
             cfg: S.cfg,
             onions: S.onions,
             audioData: S.audioData,
-            audioFilename: S.audioFilename
+            audioFilename: S.audioFilename,
+            camera: S.camera || { frames: {} }
         };
     }
 
@@ -135,6 +136,7 @@
             S.tl.max = 24;
             S.tl.fps = 12;
             S.currentProjectPath = null; // Unlink file path
+            S.camera = { frames: {} };
 
             // Clear Audio
             S.audioData = null;
@@ -180,6 +182,7 @@
                 // Restore Audio from project
                 S.audioData = state.audioData || null;
                 S.audioFilename = state.audioFilename || null;
+                S.camera = state.camera || { frames: {} };
                 if (S.audioData && S.audioFilename) {
                     if (VF.loadAudioFromProject) VF.loadAudioFromProject(S.audioData, S.audioFilename, true);
                 } else {

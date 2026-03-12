@@ -66,15 +66,28 @@
         });
 
         view.viewSize = new P.Size(S.canvas.w, S.canvas.h);
-        view.zoom = 1;
-        view.center = new P.Point(S.canvas.w / 2, S.canvas.h / 2);
+
+        /* ── Apply camera transform ── */
+        var _cam = null;
+        if (VF.hasCameraKeyframes && VF.hasCameraKeyframes()) {
+            _cam = VF.getCameraAtFrame(S.tl.frame);
+            view.zoom = _cam.zoom;
+            view.center = new P.Point(_cam.x, _cam.y);
+        } else {
+            view.zoom = 1;
+            view.center = new P.Point(S.canvas.w / 2, S.canvas.h / 2);
+        }
         view.update();
 
         var ec = document.createElement('canvas');
         ec.width = S.canvas.w;
         ec.height = S.canvas.h;
         var ectx = ec.getContext('2d');
-        ectx.drawImage(cvs, 0, 0, cvs.width, cvs.height, 0, 0, S.canvas.w, S.canvas.h);
+        if (VF.captureWithCamera) {
+            VF.captureWithCamera(_cam, cvs, ectx, S.canvas.w, S.canvas.h);
+        } else {
+            ectx.drawImage(cvs, 0, 0, cvs.width, cvs.height, 0, 0, S.canvas.w, S.canvas.h);
+        }
 
         var url = ec.toDataURL('image/png');
 

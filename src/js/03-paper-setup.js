@@ -78,24 +78,38 @@
         if (borderRect) borderRect.remove();
         if (borderOutline) borderOutline.remove();
 
+        // Fetch camera state, fallback to canvas center if undefined
+        var cam = (VF.getCameraAtFrame) ? VF.getCameraAtFrame(S.tl.frame) : { x: S.canvas.w / 2, y: S.canvas.h / 2, zoom: 1, rotation: 0 };
+
         bgLayer.activate();
+        var bgColor = (VF.wsPrefs && VF.wsPrefs.canvasBgTransparent) ? null : (VF.wsPrefs ? VF.wsPrefs.canvasBgColor : '#ffffff');
 
-        // Use workspace preference if available, fallback to white
-        var bgColor = (VF.wsPrefs && VF.wsPrefs.canvasBgTransparent) ? null :
-            (VF.wsPrefs ? VF.wsPrefs.canvasBgColor : '#ffffff');
-
+        // Draw centered at 0,0 first so scaling and rotating mathematically aligns
         borderRect = new P.Path.Rectangle({
-            point: [0, 0], size: [S.canvas.w, S.canvas.h],
+            point: [-S.canvas.w / 2, -S.canvas.h / 2],
+            size: [S.canvas.w, S.canvas.h],
             fillColor: bgColor
         });
+
+        // Transform rect to match the camera
+        borderRect.position = new P.Point(cam.x, cam.y);
+        borderRect.scale(1 / cam.zoom);
+        borderRect.rotate(cam.rotation);
         bgLayer.sendToBack();
 
         fgLayer.activate();
         borderOutline = new P.Path.Rectangle({
-            point: [0, 0], size: [S.canvas.w, S.canvas.h],
-            strokeColor: '#ccc', strokeWidth: 1 / view.zoom,
+            point: [-S.canvas.w / 2, -S.canvas.h / 2],
+            size: [S.canvas.w, S.canvas.h],
+            strokeColor: '#ccc',
+            strokeWidth: 1 / view.zoom, // keep the stroke 1px thick visually
             dashArray: [5 / view.zoom, 3 / view.zoom]
         });
+
+        // Transform outline to match the camera
+        borderOutline.position = new P.Point(cam.x, cam.y);
+        borderOutline.scale(1 / cam.zoom);
+        borderOutline.rotate(cam.rotation);
         fgLayer.bringToFront();
 
         if (VF.pLayers[S.activeId]) VF.pLayers[S.activeId].activate();
@@ -112,10 +126,16 @@
     window.addEventListener('resize', VF.fitCanvas);
 
     VF.updateInfo = function () {
-        $('#canvas-info').text(Math.round(view.zoom * 100) + '% · ' + S.canvas.w + '×' + S.canvas.h);
+        var rotStr = (VF.viewRotation && Math.abs(VF.viewRotation) > 0.5)
+            ? ' · ' + Math.round(VF.viewRotation) + '°' : '';
+        $('#canvas-info').text(Math.round(view.zoom * 100) + '%' + rotStr + ' · ' + S.canvas.w + '×' + S.canvas.h);
     };
 
     VF.resetView = function () {
+        if (VF.viewRotation) {
+            view.rotate(-VF.viewRotation, view.center);
+            VF.viewRotation = 0;
+        }
         view.zoom = 1;
         view.center = new P.Point(S.canvas.w / 2, S.canvas.h / 2);
         VF.updateInfo();

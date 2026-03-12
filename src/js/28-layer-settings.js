@@ -7,10 +7,6 @@
 
     var currentLayerId = null;
 
-    /* ═══════════════════════════════════════════════════
-       DEFAULT LAYER SETTINGS
-       ═══════════════════════════════════════════════════ */
-
     VF.defaultLayerSettings = function () {
         return {
             blendMode: 'normal',
@@ -28,7 +24,6 @@
         };
     };
 
-    /** Ensure a layer has all settings fields (safe for old projects). */
     VF.ensureLayerSettings = function (l) {
         var def = VF.defaultLayerSettings();
         if (l.blendMode === undefined) l.blendMode = def.blendMode;
@@ -43,18 +38,10 @@
         }
     };
 
-    /* ═══════════════════════════════════════════════════
-       LOCK HELPER
-       ═══════════════════════════════════════════════════ */
-
     VF.isLocked = function () {
         var l = VF.AL();
         return l && l.locked;
     };
-
-    /* ═══════════════════════════════════════════════════
-       OPEN MODAL
-       ═══════════════════════════════════════════════════ */
 
     VF.openLayerSettings = function (layerId) {
         var l = S.layers.find(function (x) { return x.id === layerId; });
@@ -63,18 +50,15 @@
         VF.ensureLayerSettings(l);
         currentLayerId = layerId;
 
-        /* Populate fields */
         $('#ls-name').val(l.name);
         $('#ls-layer-name-display').text(l.name);
         $('#ls-blend').val(l.blendMode);
         $('#ls-locked').prop('checked', l.locked);
         $('#ls-reference').prop('checked', l.reference);
 
-        /* Color tags */
         $('.ls-tag').removeClass('active');
         $('.ls-tag[data-color="' + (l.colorTag || 'none') + '"]').addClass('active');
 
-        /* Wobble */
         var w = l.wobble;
         $('#ls-wobble-on').prop('checked', w.enabled);
         $('#ls-wobble-offset').val(w.offset);
@@ -95,10 +79,6 @@
         $d.css('opacity', on ? 1 : 0.35);
         $d.find('input, select').prop('disabled', !on);
     }
-
-    /* ═══════════════════════════════════════════════════
-       APPLY SETTINGS
-       ═══════════════════════════════════════════════════ */
 
     function applySettings() {
         var l = S.layers.find(function (x) { return x.id === currentLayerId; });
@@ -123,7 +103,6 @@
             perFrame: $('input[name="ls-wobble-seed"]:checked').val() === 'perFrame'
         };
 
-        /* Invalidate raster cache when wobble or blend changes */
         if (l.cache) l.cache = {};
 
         $('#modal-layer-settings').hide();
@@ -132,61 +111,43 @@
         VF.render();
     }
 
-    /* ═══════════════════════════════════════════════════
-       MODAL EVENT BINDINGS
-       ═══════════════════════════════════════════════════ */
-
     $(document).ready(function () {
         $('#ls-apply').on('click', applySettings);
         $('#ls-cancel').on('click', function () { $('#modal-layer-settings').hide(); });
 
-        /* Close on overlay click */
         $('#modal-layer-settings').on('click', function (e) {
             if (e.target === this) $(this).hide();
         });
 
-        /* Keyboard in modal */
         $('#modal-layer-settings').on('keydown', 'input, select', function (e) {
             if (e.key === 'Enter') { e.preventDefault(); applySettings(); }
             if (e.key === 'Escape') { e.preventDefault(); $('#modal-layer-settings').hide(); }
             e.stopPropagation();
         });
 
-        /* Wobble enable toggle */
         $('#ls-wobble-on').on('change', function () {
             toggleWobbleDetails($(this).is(':checked'));
         });
 
-        /* Scale slider live label */
         $('#ls-wobble-scale').on('input', function () {
             $('#ls-wobble-scale-val').text(parseFloat(this.value).toFixed(1) + '×');
         });
 
-        /* Color tag radio-button behavior */
         $(document).on('click', '.ls-tag', function () {
             $('.ls-tag').removeClass('active');
             $(this).addClass('active');
         });
 
-        /* Settings gear in layer panel header */
         $('#btn-lyrsettings').on('click', function () {
             VF.openLayerSettings(S.activeId);
         });
     });
-
-    /* ═══════════════════════════════════════════════════
-       WOBBLE RENDERING ENGINE
-       Called from VF.render() after all frames are loaded.
-       Creates temporary Paper.js layers with jittered paths
-       that overlay the originals without modifying saved data.
-       ═══════════════════════════════════════════════════ */
 
     VF._wobbleTempLayers = [];
 
     VF.applyWobbleEffects = function (sorted, frame) {
         var P = getP();
 
-        /* Clean up previous wobble layers */
         VF._wobbleTempLayers.forEach(function (tl) {
             tl.removeChildren();
             tl.remove();
@@ -198,19 +159,14 @@
             if (!l.wobble.enabled || !l.vis) return;
             if (l.type !== 'vector') return;
 
-            /* During editing (not playing / not exporting) skip the
-               active layer — the user needs clean paths to work with.
-               They'll see a badge in the layers panel instead. */
             if (l.id === S.activeId && !S.tl.playing && !VF._exporting) return;
 
             var pl = VF.pLayers[l.id];
             if (!pl) return;
 
-            /* Get the frame vector data */
             var res = VF.getResolvedFrame(l, frame);
             if (!res || !res.data || !Array.isArray(res.data) || res.data.length === 0) return;
 
-            /* ── Temporarily reset camera for clean deserialization ── */
             var oldZoom = VF.view.zoom;
             var oldCenter = VF.view.center.clone();
             VF.view.zoom = 1;
@@ -224,12 +180,10 @@
             wobblePL.activate();
             VF.desPL(wobblePL, res.data);
 
-            /* ── Restore camera ── */
             VF.view.zoom = oldZoom;
             VF.view.center = oldCenter;
             VF.view.update();
 
-            /* ── Generate seed ── */
             var seed;
             if (l.wobble.perFrame) {
                 seed = frame * 7919 + l.id * 104729;
@@ -239,7 +193,6 @@
             var rand = VF.seededRandom(seed);
             var effectiveOffset = (l.wobble.offset || 3) * (l.wobble.scale || 1);
 
-            /* ── Jitter every segment in the temp layer ── */
             function jitterItem(item) {
                 if (item.className === 'Raster') return;
 
@@ -251,8 +204,6 @@
                         (hasFill && l.wobble.fill);
 
                     if (!shouldJitter) {
-                        /* Advance PRNG even if we skip, to keep jitter
-                           stable for paths that follow */
                         item.segments.forEach(function () { rand(); rand(); });
                         return;
                     }
@@ -273,25 +224,29 @@
 
             wobblePL.children.forEach(function (c) { jitterItem(c); });
 
-            /* ── Position in stack ── */
+            // ── Connect into new Transform Tracking Matrices ──
+            if (VF.getLayerTransform) {
+                var xf = VF.getLayerTransform(l, frame);
+                var cx = S.canvas.w / 2, cy = S.canvas.h / 2;
+                var m = new P.Matrix();
+                m.translate(cx + xf.x, cy + xf.y);
+                m.rotate(xf.rotation);
+                m.scale(xf.scaleX, xf.scaleY);
+                m.translate(-cx, -cy);
+                wobblePL.matrix = m;
+            }
+
             wobblePL.insertAbove(pl);
             wobblePL.opacity = l.opacity;
             if (l.blendMode && l.blendMode !== 'normal') {
                 wobblePL.blendMode = l.blendMode;
             }
 
-            /* Hide the original so only the wobbled version shows */
             pl.visible = false;
         });
 
-        /* Restore active layer */
         if (VF.pLayers[S.activeId]) VF.pLayers[S.activeId].activate();
     };
-
-    /* ═══════════════════════════════════════════════════
-       BLEND MODE APPLICATION
-       Called from VF.render() during the layer loop.
-       ═══════════════════════════════════════════════════ */
 
     VF.applyBlendMode = function (l, pl) {
         VF.ensureLayerSettings(l);

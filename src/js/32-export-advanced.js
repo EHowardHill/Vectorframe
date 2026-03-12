@@ -89,6 +89,15 @@
         for (var i = range.from; i <= range.to; i++) {
             S.tl.frame = i;
             VF.render();
+
+            /* ── Apply camera transform ── */
+            var _cam = null;
+            if (VF.hasCameraKeyframes && VF.hasCameraKeyframes()) {
+                _cam = VF.getCameraAtFrame(i);
+                VF.view.zoom = _cam.zoom * scale;
+                VF.view.center = new P.Point(_cam.x, _cam.y);
+            }
+
             VF.view.update();
 
             ectx.clearRect(0, 0, fw, fh);
@@ -99,7 +108,11 @@
             ectx.fillStyle = bgCol;
             ectx.fillRect(0, 0, fw, fh);
 
-            ectx.drawImage(VF.cvs, 0, 0, VF.cvs.width, VF.cvs.height, 0, 0, fw, fh);
+            if (VF.captureWithCamera) {
+                VF.captureWithCamera(_cam, VF.cvs, ectx, fw, fh);
+            } else {
+                ectx.drawImage(VF.cvs, 0, 0, VF.cvs.width, VF.cvs.height, 0, 0, fw, fh);
+            }
 
             /* Copy to a fresh canvas for this frame */
             var fc = document.createElement('canvas');

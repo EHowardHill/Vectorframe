@@ -29,9 +29,20 @@
     /** Helper: returns the symmetry center point */
     function getSymmetryCenter() {
         var P = getP();
+        var cam = VF.getCameraAtFrame ? VF.getCameraAtFrame(S.tl.frame) : { x: S.canvas.w / 2, y: S.canvas.h / 2, zoom: 1, rotation: 0 };
+
+        var localX = (S.cfg.symmetryHPos != null ? S.cfg.symmetryHPos : S.canvas.w / 2) - S.canvas.w / 2;
+        var localY = (S.cfg.symmetryVPos != null ? S.cfg.symmetryVPos : S.canvas.h / 2) - S.canvas.h / 2;
+
+        localX /= cam.zoom;
+        localY /= cam.zoom;
+
+        var rad = cam.rotation * Math.PI / 180;
+        var cos = Math.cos(rad), sin = Math.sin(rad);
+
         return new P.Point(
-            S.cfg.symmetryHPos != null ? S.cfg.symmetryHPos : S.canvas.w / 2,
-            S.cfg.symmetryVPos != null ? S.cfg.symmetryVPos : S.canvas.h / 2
+            cam.x + (localX * cos - localY * sin),
+            cam.y + (localX * sin + localY * cos)
         );
     }
 
@@ -90,19 +101,24 @@
     /* ── Mirror a single item across an axis ── */
     function mirrorItem(item, axis, center, pl) {
         var P = getP();
+        var cam = VF.getCameraAtFrame ? VF.getCameraAtFrame(S.tl.frame) : { rotation: 0 };
 
         if (item.data && item.data.isTextureStroke) {
-            return mirrorTextureItem(item, axis, center, pl);
+            return mirrorTextureItem(item, axis, center, pl, cam.rotation);
         }
 
         var clone = item.clone();
+        // Un-rotate, apply perfect mathematical mirroring, and re-rotate
+        clone.rotate(-cam.rotation, center);
         if (axis === 'h') clone.scale(-1, 1, center);
         else if (axis === 'v') clone.scale(1, -1, center);
         else clone.scale(-1, -1, center);
+        clone.rotate(cam.rotation, center);
+
         return clone;
     }
 
-    function mirrorTextureItem(item, axis, center, pl) {
+    function mirrorTextureItem(item, axis, center, pl, camRot) {
         var P = getP();
         var json = VF.serItem(item);
         if (!json) return null;
@@ -111,26 +127,32 @@
         try { data = JSON.parse(json); } catch (_) { return null; }
         if (!data.__texStroke) return null;
 
+        var DEG = Math.PI / 180;
+        function rotPt(x, y, cx, cy, deg) {
+            var r = deg * DEG, c = Math.cos(r), s = Math.sin(r);
+            return { x: (x - cx) * c - (y - cy) * s + cx, y: (x - cx) * s + (y - cy) * c + cy };
+        }
+
         if (data.pressurePoints) {
             data.pressurePoints = data.pressurePoints.map(function (p) {
-                var np = { x: p.x, y: p.y, angle: p.angle, width: p.width };
-                if (axis === 'h' || axis === 'hv') {
-                    np.x = 2 * center.x - np.x;
-                    np.angle = 180 - np.angle;
-                }
-                if (axis === 'v' || axis === 'hv') {
-                    np.y = 2 * center.y - np.y;
-                    np.angle = -np.angle;
-                }
-                return np;
+                var u = rotPt(p.x, p.y, center.x, center.y, -camRot);
+                var uAng = p.angle - camRot;
+
+                if (axis === 'h' || axis === 'hv') { u.x = 2 * center.x - u.x; uAng = 180 - uAng; }
+                if (axis === 'v' || axis === 'hv') { u.y = 2 * center.y - u.y; uAng = -uAng; }
+
+                var r = rotPt(u.x, u.y, center.x, center.y, camRot);
+                return { x: r.x, y: r.y, angle: uAng + camRot, width: p.width };
             });
         } else if (data.pathJSON) {
             var tmp = new P.Layer({ insert: false });
             var guide = tmp.importJSON(data.pathJSON);
             if (guide) {
+                guide.rotate(-camRot, center);
                 if (axis === 'h') guide.scale(-1, 1, center);
                 else if (axis === 'v') guide.scale(1, -1, center);
                 else guide.scale(-1, -1, center);
+                guide.rotate(camRot, center);
                 data.pathJSON = guide.exportJSON();
             }
             tmp.remove();
@@ -527,8 +549,8 @@
 
 
     /* ═══════════════════════════════════════════════════
-       RENDER HOOK
-       ═══════════════════════════════════════════════════ */
+           RENDER HOOK
+           ═══════════════════════════════════════════════════ */
 
     var _origRender = VF.render;
 
@@ -539,10 +561,38 @@
         if (VF._exporting) return;
         if (S.tl.playing) return;
 
+        // Create an invisible grouping layer for all guides to lock them to the camera
+        var guideGroup = new (getP()).Group();
+        guideGroup._isH = true;
+        guideGroup._isGuide = true;
+
+        var oldAdd = addGuideItem;
+        addGuideItem = function (item) {
+            item._isH = true;
+            item._isGuide = true;
+            guideGroup.addChild(item);
+        };
+
         renderGrid();
         renderSafeZones();
         renderCenterMark();
         renderSymmetryGuides();
+
+        addGuideItem = oldAdd;
+
+        // Apply global camera transform to the visual guides
+        if (guideGroup.children.length > 0) {
+            var cam = VF.getCameraAtFrame ? VF.getCameraAtFrame(S.tl.frame) : { x: S.canvas.w / 2, y: S.canvas.h / 2, zoom: 1, rotation: 0 };
+
+            guideGroup.pivot = new (getP()).Point(S.canvas.w / 2, S.canvas.h / 2);
+            guideGroup.position = new (getP()).Point(cam.x, cam.y);
+            guideGroup.scale(1 / cam.zoom);
+            guideGroup.rotate(cam.rotation);
+
+            _guideItems.push(guideGroup);
+        } else {
+            guideGroup.remove();
+        }
     };
 
 

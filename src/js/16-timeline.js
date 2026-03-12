@@ -34,7 +34,6 @@
                 var n = S.tl.frame + 1;
                 if (n >= S.tl.max) {
                     n = 0;
-                    /* Restart audio in sync when animation loops */
                     if (window.VF.startAudioPlayback) VF.startAudioPlayback(0);
                 }
                 VF.goFrame(n);
@@ -73,101 +72,100 @@
         }
         $('#tl-ruler').html(rh);
 
-        /* FIX: Add color tag data attribute to timeline labels for CSS border styling */
         var TAG_COLORS = VF.TAG_COLORS || {};
-        var lh = '<div class="tl-audio-label"><i class="fa-solid fa-music"></i> Audio</div>';
+        var lh = '';
+        if (VF.buildCameraTimelineLabel) lh += VF.buildCameraTimelineLabel();
+        lh += '<div class="tl-audio-label"><i class="fa-solid fa-music"></i> Audio</div>';
+
         [].concat(S.layers).sort(function (a, b) { return b.z - a.z; }).forEach(function (l) {
             var icon = l.type === 'image' ? '🖼 ' : '';
             var tag = l.colorTag || 'none';
-            var tagStyle = '';
-            if (tag !== 'none' && TAG_COLORS[tag]) {
-                tagStyle = ' data-tag="' + tag + '" style="--tag-color:' + TAG_COLORS[tag] + '"';
-            }
+            var tagStyle = tag !== 'none' && TAG_COLORS[tag] ? ' data-tag="' + tag + '" style="--tag-color:' + TAG_COLORS[tag] + '"' : '';
+
+            // Frame keys track
             lh += '<div class="tl-llbl"' + tagStyle + '>' + icon + l.name + '</div>';
+            // Tween transforms track
+            lh += '<div class="tl-llbl" style="background:var(--bg-hover); padding-left:20px; font-size:9px; color:var(--text-dim); border-left: 3px solid transparent">↳ Transform</div>';
         });
         $('#tl-labels').html(lh);
 
         var rows = '';
+        if (VF.buildCameraTimelineRow) rows += VF.buildCameraTimelineRow();
         [].concat(S.layers).sort(function (a, b) { return b.z - a.z; }).forEach(function (l) {
+
+            // Frame Cells
             var cells = '';
             var activeKey = null;
-
             for (var i = 0; i < max; i++) {
                 var cc = i === cur ? ' cur' : '';
                 var isKey = l.frames[i] !== undefined;
-
                 if (isKey) activeKey = i;
-
                 var content = '';
                 if (isKey) {
-                    content = '<div class="tl-dot keyframe" data-f="' + i + '" data-l="' + l.id + '"></div>';
+                    var twCls = (l.tweens && l.tweens[i]) ? ' tween' : '';
+                    content = '<div class="tl-dot keyframe' + twCls + '" data-f="' + i + '" data-l="' + l.id + '"></div>';
                 } else if (activeKey !== null) {
                     content = '<div class="tl-exposure"></div>';
                 }
-
                 cells += '<div class="tl-cell' + cc + '" data-f="' + i + '" data-l="' + l.id + '" style="position:relative">' + content + '</div>';
             }
             rows += '<div class="tl-row" data-l="' + l.id + '">' + cells + '</div>';
+
+            // Transform / Tween Cells
+            if (!l.transforms) l.transforms = {};
+            var tCells = '';
+            for (var i = 0; i < max; i++) {
+                var cc = i === cur ? ' cur' : '';
+                var isTKey = l.transforms[i] !== undefined;
+                var content = isTKey ? '<div class="tl-dot keyframe tween" data-f="' + i + '" data-l="' + l.id + '" data-type="transform" style="background:var(--success); border-color:var(--success); transform:rotate(0); border-radius:1px; width:6px; height:6px; left:5px; top:6px;"></div>' : '';
+                tCells += '<div class="tl-cell' + cc + '" data-f="' + i + '" data-l="' + l.id + '" data-type="transform" style="position:relative">' + content + '</div>';
+            }
+            rows += '<div class="tl-row" data-l="' + l.id + '" data-type="transform" style="background:var(--bg-hover)">' + tCells + '</div>';
         });
         $('#tl-rows').html(rows);
 
         $('#tl-grid').css('min-width', (displayMax * 18) + 'px');
         VF.uiPlayhead();
 
-        /* FIX: Re-render the audio waveform after the timeline DOM is rebuilt.
-           Without this, the waveform canvas gets cleared every time uiTimeline runs. */
         if (VF.renderAudioWaveform) VF.renderAudioWaveform();
     };
 
-    var ctxL = null, ctxF = null;
+    var ctxL = null, ctxF = null, ctxType = null;
 
-    /* ═══════════════════════════════════════════════════
-       CONTEXT MENU — with viewport bounds clamping
-       ═══════════════════════════════════════════════════
-       Positions the menu at (x, y) but shifts it inward
-       if it would overflow the right or bottom edge of
-       the viewport.
-       ═══════════════════════════════════════════════════ */
-    function showCtx(x, y, l, f) {
-        ctxL = l; ctxF = f;
+    function showCtx(x, y, l, f, type) {
+        ctxL = l; ctxF = f; ctxType = type || 'draw';
 
         var $menu = $('#dot-ctx');
-
-        /* Make the menu visible off-screen first so we can measure it */
         $menu.css({ left: -9999, top: -9999, display: 'block' });
+
+        // Selectively show options depending on track
+        if (ctxType === 'transform') {
+            $menu.find('.ctx-i').show();
+            $menu.find('[data-act="toggle-loop"], [data-act="toggle-tween"], [data-act="insert-frame"], [data-act="remove-frame"], [data-act="clear-exposure"]').hide();
+        } else {
+            $menu.find('.ctx-i').show();
+        }
 
         var mw = $menu.outerWidth();
         var mh = $menu.outerHeight();
         var vw = window.innerWidth;
         var vh = window.innerHeight;
-        var pad = 4; /* small margin from window edges */
+        var pad = 4;
 
-        /* Clamp to the right edge */
-        if (x + mw + pad > vw) {
-            x = vw - mw - pad;
-        }
+        if (x + mw + pad > vw) x = vw - mw - pad;
+        if (y + mh + pad > vh) y = vh - mh - pad;
 
-        /* Clamp to the bottom edge */
-        if (y + mh + pad > vh) {
-            y = vh - mh - pad;
-        }
-
-        /* Safety: don't let it go negative either */
         if (x < pad) x = pad;
         if (y < pad) y = pad;
 
         $menu.css({ left: x, top: y });
     }
 
-    // ═══════════════════════════════════════════════════
-    //  CUSTOM POINTER-BASED DRAG ENGINE
-    // ═══════════════════════════════════════════════════
     $(document).ready(function () {
         var $tlRows = $('#tl-rows');
         var $tlRuler = $('#tl-ruler');
         var $dotCtx = $('#dot-ctx');
 
-        // Blank cell clicks trigger navigation
         $tlRows.on('click', '.tl-cell', function (e) {
             if (e.button !== 0 || $(e.target).hasClass('tl-dot')) return;
             VF.goFrame(+$(this).data('f'));
@@ -178,12 +176,11 @@
             VF.goFrame(+$(this).data('f'));
         });
 
-        // Context Menu
         $tlRows.on('contextmenu', '.tl-cell', function (e) {
             e.preventDefault(); e.stopPropagation();
             S.tl.frame = +$(this).data('f');
             VF.render(); VF.uiPlayhead();
-            showCtx(e.clientX, e.clientY, +$(this).data('l'), +$(this).data('f'));
+            showCtx(e.clientX, e.clientY, +$(this).data('l'), +$(this).data('f'), $(this).data('type'));
         });
 
         $(document).on('click', function () { $dotCtx.hide(); });
@@ -197,10 +194,15 @@
             if (!layer.cache) layer.cache = {};
 
             if (act === 'copy-frame') {
-                S.clip = res && res.data ? JSON.parse(JSON.stringify(res.data)) : null;
-                VF.toast(S.clip ? 'Keyframe copied' : 'Blank frame copied');
+                if (ctxType === 'transform') {
+                    var t = VF.getLayerTransform(layer, ctxF);
+                    S.clipTransform = Object.assign({}, t);
+                    VF.toast('Transform keyframe copied');
+                } else {
+                    S.clip = res && res.data ? JSON.parse(JSON.stringify(res.data)) : null;
+                    VF.toast(S.clip ? 'Keyframe copied' : 'Blank frame copied');
+                }
             } else {
-                /* FIX: Check if layer is locked before destructive operations */
                 if (layer.locked && act !== 'copy-frame') {
                     VF.toast('Layer is locked');
                     $dotCtx.hide();
@@ -212,11 +214,25 @@
                 if (act === 'toggle-loop') {
                     if (res && res.data) res.data._loop = !res.data._loop;
                 }
+                else if (act === 'toggle-tween') {
+                    if (layer.frames[ctxF] === undefined) return;
+                    if (!layer.tweens) layer.tweens = {};
+                    layer.tweens[ctxF] = !layer.tweens[ctxF];
+                    layer.cache = {};
+                    VF.toast(layer.tweens[ctxF] ? 'Tweening enabled' : 'Tweening disabled');
+                }
                 else if (act === 'delete-keyframe') {
-                    if (layer.frames[ctxF] !== undefined) {
-                        delete layer.frames[ctxF];
-                        delete layer.cache[ctxF];
-                        if (VF.pLayers[layer.id]) VF.pLayers[layer.id].removeChildren();
+                    if (ctxType === 'transform') {
+                        if (layer.transforms && layer.transforms[ctxF] !== undefined) {
+                            delete layer.transforms[ctxF];
+                            VF.render(); VF.uiTimeline();
+                        }
+                    } else {
+                        if (layer.frames[ctxF] !== undefined) {
+                            delete layer.frames[ctxF];
+                            delete layer.cache[ctxF];
+                            if (VF.pLayers[layer.id]) VF.pLayers[layer.id].removeChildren();
+                        }
                     }
                 }
                 else if (act === 'clear-exposure') {
@@ -225,8 +241,15 @@
                     if (VF.pLayers[layer.id]) VF.pLayers[layer.id].removeChildren();
                 }
                 else if (act === 'paste-frame') {
-                    layer.frames[ctxF] = S.clip ? JSON.parse(JSON.stringify(S.clip)) : [];
-                    delete layer.cache[ctxF];
+                    if (ctxType === 'transform') {
+                        if (S.clipTransform) {
+                            if (!layer.transforms) layer.transforms = {};
+                            layer.transforms[ctxF] = Object.assign({}, S.clipTransform);
+                        }
+                    } else {
+                        layer.frames[ctxF] = S.clip ? JSON.parse(JSON.stringify(S.clip)) : [];
+                        delete layer.cache[ctxF];
+                    }
                 }
                 else if (act === 'insert-frame') {
                     layer.cache = {};
@@ -265,9 +288,12 @@
             e.stopPropagation();
 
             var $cell = $(this).closest('.tl-cell');
+            var type = $(this).data('type') || 'draw';
+
             tlDrag = {
                 f: +$cell.data('f'),
                 l: +$cell.data('l'),
+                type: type,
                 el: $(this),
                 startX: e.clientX,
                 startY: e.clientY,
@@ -308,6 +334,15 @@
                 tlDrag.ghost.show();
 
                 var $targetCell = $(target).closest('.tl-cell');
+
+                // Enforce tracking parity: Transforms can only drop on Transform rows
+                if ($targetCell.length) {
+                    var tType = $targetCell.data('type') || 'draw';
+                    if (tType !== tlDrag.type) {
+                        $targetCell = $();
+                    }
+                }
+
                 if ($targetCell.length) {
                     var tf = +$targetCell.data('f');
                     var tl = +$targetCell.data('l');
@@ -333,7 +368,6 @@
                     var tf = tlDrag.targetCell.f;
                     var tl = tlDrag.targetCell.l;
 
-                    /* FIX: Check if source layer is locked before allowing keyframe drag */
                     var srcLayer = S.layers.find(function (x) { return x.id === tlDrag.l; });
                     var tgtLayer = S.layers.find(function (x) { return x.id === tl; });
 
@@ -344,12 +378,20 @@
                     } else if (srcLayer && tgtLayer) {
                         VF.saveHistory();
 
-                        var keyData = srcLayer.frames[tlDrag.f];
-                        delete srcLayer.frames[tlDrag.f];
-                        if (srcLayer.cache) delete srcLayer.cache[tlDrag.f];
+                        if (tlDrag.type === 'transform') {
+                            if (!srcLayer.transforms) srcLayer.transforms = {};
+                            if (!tgtLayer.transforms) tgtLayer.transforms = {};
+                            var tData = srcLayer.transforms[tlDrag.f];
+                            delete srcLayer.transforms[tlDrag.f];
+                            tgtLayer.transforms[tf] = tData;
+                        } else {
+                            var keyData = srcLayer.frames[tlDrag.f];
+                            delete srcLayer.frames[tlDrag.f];
+                            if (srcLayer.cache) delete srcLayer.cache[tlDrag.f];
 
-                        tgtLayer.frames[tf] = keyData;
-                        if (tgtLayer.cache) delete tgtLayer.cache[tf];
+                            tgtLayer.frames[tf] = keyData;
+                            if (tgtLayer.cache) delete tgtLayer.cache[tf];
+                        }
 
                         S.tl.frame = tf;
                     }

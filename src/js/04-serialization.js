@@ -5,10 +5,134 @@
     function getP() { if (!P) P = VF.P; return P; }
 
     VF.getResolvedFrame = function (layer, f) {
-        for (var i = f; i >= 0; i--) {
-            if (layer.frames[i] !== undefined) return { keyFrame: i, data: layer.frames[i] };
+        var P = getP();
+        if (!layer.frames) return null;
+        var keys = Object.keys(layer.frames).map(Number).sort(function (a, b) { return a - b; });
+        if (keys.length === 0) return null;
+
+        var prev = -1, next = -1;
+        for (var i = 0; i < keys.length; i++) {
+            if (keys[i] <= f) prev = keys[i];
+            if (keys[i] > f && next === -1) next = keys[i];
         }
-        return null;
+
+        if (prev === -1) return null;
+
+        // Return standard static frame if no next frame or tweening is disabled
+        if (prev === f || next === -1 || !layer.tweens || !layer.tweens[prev]) {
+            return { keyFrame: prev, data: layer.frames[prev] };
+        }
+
+        // TWEENING ENGINE
+        var t = (f - prev) / (next - prev);
+        var dataA = layer.frames[prev];
+        var dataB = layer.frames[next];
+
+        // 1. Image Layer Tweening (Matrix Lerp)
+        if (layer.type === 'image') {
+            if (!dataA.matrix || !dataB.matrix) return { keyFrame: f, data: dataA };
+            var mA = new P.Matrix(dataA.matrix[0], dataA.matrix[1], dataA.matrix[2], dataA.matrix[3], dataA.matrix[4], dataA.matrix[5]).decompose();
+            var mB = new P.Matrix(dataB.matrix[0], dataB.matrix[1], dataB.matrix[2], dataB.matrix[3], dataB.matrix[4], dataB.matrix[5]).decompose();
+
+            var lerp = function (a, b, amt) { return a + (b - a) * amt; };
+            var nT = new P.Point(lerp(mA.translation.x, mB.translation.x, t), lerp(mA.translation.y, mB.translation.y, t));
+            var nS = new P.Point(lerp(mA.scaling.x, mB.scaling.x, t), lerp(mA.scaling.y, mB.scaling.y, t));
+            var nR = lerp(mA.rotation, mB.rotation, t);
+            var nSk = new P.Point(lerp(mA.skewing.x, mB.skewing.x, t), lerp(mA.skewing.y, mB.skewing.y, t));
+
+            var m = new P.Matrix();
+            m.translate(nT); m.rotate(nR); m.scale(nS); m.skew(nSk);
+            return { keyFrame: f, data: { matrix: m.values }, isTween: true };
+        }
+
+        // 2. Vector Layer Tweening (Deep Tree & Shape Interpolation)
+        if (layer.type === 'vector') {
+            if (dataA.length !== dataB.length) return { keyFrame: prev, data: dataA };
+
+            var resultData = [];
+            var lerp = function (a, b, amt) { return a + (b - a) * amt; };
+            var lerpPt = function (p1, p2, amt) { return new P.Point(lerp(p1.x, p2.x, amt), lerp(p1.y, p2.y, amt)); };
+
+            var interpolateTrees = function (itemA, itemB) {
+                if (itemA.className !== itemB.className) return;
+
+                if (itemA.className === 'Path') {
+                    if (itemA.segments && itemB.segments && itemA.segments.length === itemB.segments.length) {
+                        for (var i = 0; i < itemA.segments.length; i++) {
+                            var sA = itemA.segments[i], sB = itemB.segments[i];
+                            sA.point = lerpPt(sA.point, sB.point, t);
+                            sA.handleIn = lerpPt(sA.handleIn, sB.handleIn, t);
+                            sA.handleOut = lerpPt(sA.handleOut, sB.handleOut, t);
+                        }
+                    }
+                    if (itemA.strokeWidth !== undefined && itemB.strokeWidth !== undefined) {
+                        itemA.strokeWidth = lerp(itemA.strokeWidth, itemB.strokeWidth, t);
+                    }
+                } else if (itemA.className === 'Group' || itemA.className === 'CompoundPath') {
+                    if (itemA.children && itemB.children && itemA.children.length === itemB.children.length) {
+                        for (var j = 0; j < itemA.children.length; j++) {
+                            interpolateTrees(itemA.children[j], itemB.children[j]);
+                        }
+                    }
+                }
+                if (itemA.matrix && itemB.matrix && !itemA.matrix.equals(itemB.matrix)) {
+                    var dA = itemA.matrix.decompose();
+                    var dB = itemB.matrix.decompose();
+                    var mat = new P.Matrix();
+                    mat.translate(lerpPt(dA.translation, dB.translation, t));
+                    mat.rotate(lerp(dA.rotation, dB.rotation, t));
+                    mat.scale(lerpPt(dA.scaling, dB.scaling, t));
+                    mat.skew(lerpPt(dA.skewing, dB.skewing, t));
+                    itemA.matrix = mat;
+                }
+            };
+
+            for (var idx = 0; idx < dataA.length; idx++) {
+                try {
+                    var jA = dataA[idx], jB = dataB[idx];
+                    if (!jB) { resultData.push(jA); continue; }
+
+                    var pA = JSON.parse(jA), pB = JSON.parse(jB);
+
+                    if (pA.__texStroke && pB.__texStroke) {
+                        pA.size = lerp(pA.size, pB.size, t);
+                        if (pA.pressurePoints && pB.pressurePoints && pA.pressurePoints.length === pB.pressurePoints.length) {
+                            for (var k = 0; k < pA.pressurePoints.length; k++) {
+                                var ptA = pA.pressurePoints[k], ptB = pB.pressurePoints[k];
+                                ptA.x = lerp(ptA.x, ptB.x, t);
+                                ptA.y = lerp(ptA.y, ptB.y, t);
+                                ptA.angle = lerp(ptA.angle, ptB.angle, t);
+                                ptA.width = lerp(ptA.width, ptB.width, t);
+                            }
+                        } else if (pA.pathJSON && pB.pathJSON) {
+                            var tmpA = new P.Group({ insert: false }), tmpB = new P.Group({ insert: false });
+                            var gA = tmpA.importJSON(pA.pathJSON);
+                            var gB = tmpB.importJSON(pB.pathJSON);
+                            interpolateTrees(gA, gB);
+                            pA.pathJSON = gA.exportJSON();
+                            tmpA.remove(); tmpB.remove();
+                        }
+                        resultData.push(JSON.stringify(pA));
+                    } else {
+                        var tmpA2 = new P.Group({ insert: false }), tmpB2 = new P.Group({ insert: false });
+                        var gA2 = tmpA2.importJSON(jA);
+                        var gB2 = tmpB2.importJSON(jB);
+                        if (gA2 && gB2) {
+                            interpolateTrees(gA2, gB2);
+                            resultData.push(gA2.exportJSON());
+                        } else {
+                            resultData.push(jA);
+                        }
+                        tmpA2.remove(); tmpB2.remove();
+                    }
+                } catch (e) {
+                    resultData.push(dataA[idx]); // Fallback if parse fails
+                }
+            }
+            return { keyFrame: f, data: resultData, isTween: true };
+        }
+
+        return { keyFrame: prev, data: dataA };
     };
 
     VF.serPL = function (pl) {
@@ -111,15 +235,19 @@
         var pl = VF.pLayers[l.id]; if (!pl) return;
 
         var res = VF.getResolvedFrame(l, S.tl.frame);
-        var targetFrame = res ? res.keyFrame : S.tl.frame;
+        var targetFrame = (res && !res.isTween) ? res.keyFrame : S.tl.frame;
 
         if (l.type === 'vector') {
             l.frames[targetFrame] = VF.serPL(pl);
             if (!l.cache) l.cache = {};
-            delete l.cache[targetFrame];
+
+            if (l.tweens && Object.keys(l.tweens).length > 0) l.cache = {};
+            else delete l.cache[targetFrame];
+
         } else if (l.type === 'image') {
             var r = pl.children.find(function (c) { return c.className === 'Raster'; });
             l.frames[targetFrame] = r ? { matrix: r.matrix.values } : [];
+            if (l.tweens && Object.keys(l.tweens).length > 0) l.cache = {};
         }
     };
 
@@ -135,10 +263,6 @@
         if (l.type === 'vector') {
             pl.removeChildren();
 
-            /* ── During MP4 export (VF._exporting === true), ALL layers
-               get full vector deserialization for maximum quality.
-               Normally only the active layer gets full deser;
-               the rest use a raster cache for performance. ── */
             if (id === S.activeId || VF._exporting) {
                 VF.desPL(pl, data);
             } else {
@@ -150,9 +274,6 @@
                     var r = new P.Raster({ canvas: cacheData.cvs });
                     r.position = new P.Point(cacheData.x, cacheData.y);
 
-                    // --- HIGH DPI FIX ---
-                    // Force the logical bounds to match the expected width.
-                    // This prevents Paper.js from double-shrinking the cached frame.
                     var expectedWidth = cacheData.cvs.width / (cacheData.dpr || 1);
                     if (r.bounds.width && Math.abs(r.bounds.width - expectedWidth) > 0.01) {
                         r.scale(expectedWidth / r.bounds.width);
@@ -165,23 +286,18 @@
                     if (pl.children.length > 0) {
                         var dpr = window.devicePixelRatio || 1;
 
-                        // --- CAMERA BAKE FIX ---
-                        // Temporarily reset the camera to 1:1 project space so the 
-                        // raster snapshot doesn't bake in the current zoom or pan!
                         var oldZoom = VF.view.zoom;
                         var oldCenter = VF.view.center.clone();
 
                         VF.view.zoom = 1;
                         VF.view.center = new P.Point(S.canvas.w / 2, S.canvas.h / 2);
-                        VF.view.update(); // Force internal matrix update
+                        VF.view.update();
 
                         var raster = pl.rasterize(72 * dpr, false);
 
-                        // Restore the camera instantly
                         VF.view.zoom = oldZoom;
                         VF.view.center = oldCenter;
                         VF.view.update();
-                        // -----------------------
 
                         var cacheCvs = document.createElement('canvas');
                         cacheCvs.width = raster.canvas.width;
@@ -212,6 +328,31 @@
                 pl.addChild(imgR);
             }
         }
+    };
+
+    // ── Dedicated Non-Destructive Layer-Level Transformations ──
+    VF.getLayerTransform = function (layer, f) {
+        var def = { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0 };
+        if (!layer.transforms) return def;
+        var keys = Object.keys(layer.transforms).map(Number).sort(function (a, b) { return a - b; });
+        if (keys.length === 0) return def;
+        if (keys.length === 1 || f <= keys[0]) return Object.assign({}, layer.transforms[keys[0]]);
+        if (f >= keys[keys.length - 1]) return Object.assign({}, layer.transforms[keys[keys.length - 1]]);
+
+        var prev = keys[0], next = keys[1];
+        for (var i = 0; i < keys.length - 1; i++) {
+            if (f >= keys[i] && f <= keys[i + 1]) { prev = keys[i]; next = keys[i + 1]; break; }
+        }
+
+        var t = (next === prev) ? 0 : (f - prev) / (next - prev);
+        var a = layer.transforms[prev], b = layer.transforms[next];
+        return {
+            x: a.x + (b.x - a.x) * t,
+            y: a.y + (b.y - a.y) * t,
+            scaleX: a.scaleX + (b.scaleX - a.scaleX) * t,
+            scaleY: a.scaleY + (b.scaleY - a.scaleY) * t,
+            rotation: a.rotation + (b.rotation - a.rotation) * t
+        };
     };
 
 })();

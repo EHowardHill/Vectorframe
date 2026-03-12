@@ -379,14 +379,18 @@
             return;
         }
 
-        if (k === 'b') VF.setTool('brush');
+        if (k === 'c' && !e.ctrlKey && !e.metaKey) VF.setTool('camera');
+        else if (k === 'b') VF.setTool('brush');
         else if (k === 'v' && !e.shiftKey) VF.setTool('select');
         else if (k === 'l') VF.setTool('lasso');
         else if (k === 'e') VF.setTool('eraser');
         else if (k === 'g') VF.setTool('fill');
         else if (k === 'h' && !e.ctrlKey && !e.shiftKey) VF.setTool('hide-edge');
         else if (k === 't') VF.setTool('translate');
-        else if (k === 'r' && !e.ctrlKey) VF.setTool('rotate');
+        else if (k === 'r' && !e.ctrlKey) {
+            if (e.shiftKey) VF.setTool('rotate-view');
+            else VF.setTool('rotate');
+        }
         else if (k === 's' && !e.ctrlKey && !e.metaKey) VF.setTool('scale');
         else if (k === 'z' && !e.ctrlKey && !e.metaKey) VF.setTool('zoom');
         else if (k === ' ') { e.preventDefault(); if (!spaceHeld) { spaceHeld = true; preSpaceTool = S.tool; VF.setTool('pan'); } }

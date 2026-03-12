@@ -1,3 +1,5 @@
+// ./src/js/15-tool-activation.js
+
 (function () {
     "use strict";
 
@@ -33,10 +35,13 @@
         else if (t === 'fill') VF.tFill.activate();
         else if (t === 'hide-edge') VF.tHideEdge.activate();
         else if (['translate', 'rotate', 'scale'].includes(t)) VF.tXform.activate();
-        else if (['pan', 'zoom'].includes(t)) VF.tCam.activate();
+        else if (t === 'camera') VF.tCamera.activate();
+        else if (['pan', 'zoom', 'rotate-view'].includes(t)) VF.tCam.activate();
 
-        var cursorMap = { brush: 'crosshair', select: 'default', lasso: 'crosshair', eraser: 'crosshair', fill: 'crosshair', 'hide-edge': 'pointer', translate: 'move', rotate: 'grab', scale: 'nwse-resize', pan: 'grab', zoom: 'zoom-in' };
-        cvs.style.cursor = cursorMap[t] || 'default';
+        var cursorMap = { brush: 'crosshair', select: 'default', lasso: 'crosshair', eraser: 'crosshair', fill: 'crosshair', 'hide-edge': 'pointer', translate: 'move', rotate: 'grab', scale: 'nwse-resize', camera: 'default', pan: 'grab', zoom: 'zoom-in', 'rotate-view': 'alias' };
+
+        if (VF.renderCameraOverlay) VF.renderCameraOverlay();
+        if (VF.view) VF.view.update();
     };
 
 })();

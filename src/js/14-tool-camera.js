@@ -18,21 +18,38 @@
 
     tCam.onMouseDrag = function (e) {
         var P = getP();
-
-        // 2. Calculate the raw pixel difference on the screen
         var currentScreenPt = new P.Point(e.event.clientX, e.event.clientY);
-        var screenDelta = lastScreenPt ? currentScreenPt.subtract(lastScreenPt) : new P.Point(0, 0);
-        lastScreenPt = currentScreenPt;
 
         if (S.tool === 'pan') {
-            // Divide the screen movement by the zoom level to get stable project movement
-            VF.view.center = VF.view.center.subtract(screenDelta.divide(VF.view.zoom));
+            // Using viewToProject ensures panning perfectly tracks the mouse even when rotated
+            var pLast = VF.view.viewToProject(lastScreenPt);
+            var pCur = VF.view.viewToProject(currentScreenPt);
+            VF.view.center = VF.view.center.subtract(pCur.subtract(pLast));
+
         } else if (S.tool === 'zoom') {
-            // Use screen Y movement so the zoom speed is consistent at all depths
+            var screenDelta = lastScreenPt ? currentScreenPt.subtract(lastScreenPt) : new P.Point(0, 0);
             var f = 1 + screenDelta.y * -0.006;
             VF.view.zoom = Math.max(.05, Math.min(16, VF.view.zoom * f));
+
+        } else if (S.tool === 'rotate-view') {
+            // Calculate angle change relative to the center of the screen
+            var rect = cvs.getBoundingClientRect();
+            var cx = rect.left + rect.width / 2;
+            var cy = rect.top + rect.height / 2;
+
+            var a1 = Math.atan2(lastScreenPt.y - cy, lastScreenPt.x - cx);
+            var a2 = Math.atan2(currentScreenPt.y - cy, currentScreenPt.x - cx);
+            var deltaDeg = (a2 - a1) * (180 / Math.PI);
+
+            // Handle math wraparound
+            if (deltaDeg > 180) deltaDeg -= 360;
+            if (deltaDeg < -180) deltaDeg += 360;
+
+            VF.view.rotate(deltaDeg, VF.view.center);
+            VF.viewRotation = (VF.viewRotation || 0) + deltaDeg;
         }
 
+        lastScreenPt = currentScreenPt;
         VF.updateInfo();
         VF.drawBorder();
     };
@@ -76,10 +93,14 @@
         if (isMiddlePanning && middlePanStart) {
             var ev = e.originalEvent;
             var currentPt = new P.Point(ev.clientX, ev.clientY);
-            var delta = currentPt.subtract(middlePanStart).divide(VF.view.zoom);
-            VF.view.center = VF.view.center.subtract(delta);
+
+            var pLast = VF.view.viewToProject(middlePanStart);
+            var pCur = VF.view.viewToProject(currentPt);
+            VF.view.center = VF.view.center.subtract(pCur.subtract(pLast));
+
             middlePanStart = currentPt;
-            VF.updateInfo(); VF.drawBorder();
+            VF.updateInfo();
+            VF.drawBorder();
         }
     });
 
@@ -179,6 +200,11 @@
         var P = getP();
         var canvasEl = document.getElementById('main-canvas');
         if (!canvasEl) return;
+
+        if (VF.viewRotation) {
+            VF.view.rotate(-VF.viewRotation, VF.view.center);
+            VF.viewRotation = 0;
+        }
 
         var viewW = canvasEl.clientWidth;
         var viewH = canvasEl.clientHeight;

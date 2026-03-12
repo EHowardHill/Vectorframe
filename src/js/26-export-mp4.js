@@ -97,6 +97,16 @@
             for (let i = 0; i < S.tl.max; i++) {
                 S.tl.frame = i;
                 VF.render();       // Load items for this frame
+
+                /* ── Apply camera transform ── */
+                var _cam = null;
+                if (VF.hasCameraKeyframes && VF.hasCameraKeyframes()) {
+                    _cam = VF.getCameraAtFrame(i);
+                    VF.view.zoom = _cam.zoom;
+                    VF.view.center = new VF.P.Point(_cam.x, _cam.y);
+                }
+                /* If no camera, view is already set to 1:1 by the caller */
+
                 VF.view.update();  // Force Paper.js to draw it
 
                 // Clear export canvas and paint background
@@ -104,8 +114,12 @@
                 ectx.fillStyle = mp4Bg;
                 ectx.fillRect(0, 0, ec.width, ec.height);
 
-                // Draw the Paper.js canvas onto our export canvas
-                ectx.drawImage(VF.cvs, 0, 0, VF.cvs.width, VF.cvs.height, 0, 0, S.canvas.w, S.canvas.h);
+                // Draw the Paper.js canvas onto our export canvas (with rotation)
+                if (VF.captureWithCamera) {
+                    VF.captureWithCamera(_cam, VF.cvs, ectx, S.canvas.w, S.canvas.h);
+                } else {
+                    ectx.drawImage(VF.cvs, 0, 0, VF.cvs.width, VF.cvs.height, 0, 0, S.canvas.w, S.canvas.h);
+                }
 
                 // Extract base64 data URL
                 let dataUrl = ec.toDataURL('image/png');

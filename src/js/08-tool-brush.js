@@ -21,17 +21,6 @@
 
     /* ═══════════════════════════════════════════════════
        PEN INPUT OPTIMIZATION
-       ═══════════════════════════════════════════════════
-       Stylus / pen devices fire pointer events at 200+ Hz
-       while mice typically fire at ~60 Hz. Without throttling,
-       every event adds a Paper.js point or child object,
-       causing visible lag with pen input.
-
-       MIN_POINT_DIST: minimum pixel distance between
-       consecutive points that we actually process. Points
-       closer than this are skipped until the pen moves
-       far enough. The final mouseUp point is always
-       captured so stroke endpoints stay accurate.
        ═══════════════════════════════════════════════════ */
     var MIN_POINT_DIST = 1.5;
     var lastAddedPoint = null;
@@ -51,7 +40,6 @@
         if (fillPreview) { fillPreview.remove(); fillPreview = null; }
     }
 
-    /* ── Build a live fill + texture preview on the active layer ── */
     function renderTexPreview() {
         var P = getP();
         var pl = VF.pLayers[S.activeId];
@@ -135,9 +123,11 @@
         var l = VF.AL(); if (!l || l.type !== 'vector') return;
         var pl = VF.pLayers[l.id]; if (!pl) return;
 
+        // Convert project/camera space point to the layer's local transformed space
+        var localPt = pl.globalToLocal(e.point);
+
         VF.saveHistory();
 
-        /* Clear previous selection */
         VF.selSegments = [];
         VF.clearHandles();
 
@@ -156,7 +146,7 @@
         if (S.cfg.pressure) {
             pressureGroup = new P.Group();
             pressurePoints = [];
-            lastPoint = e.point;
+            lastPoint = localPt.clone();
 
             var col = S.cfg.autoStroke ? S.cfg.strokeCol : '#1e1e24';
             var w = Math.max(0.5, S.cfg.brushSize * VF.currentPressure);
@@ -168,18 +158,18 @@
                     opacity: 0.35,
                     strokeCap: 'round'
                 });
-                pressureGuidePath.add(e.point);
+                pressureGuidePath.add(localPt.clone());
                 pressureGroup.addChild(pressureGuidePath);
             } else {
                 var dot = new P.Path.Circle({
-                    center: e.point, radius: w / 2,
+                    center: localPt.clone(), radius: w / 2,
                     fillColor: col
                 });
                 pressureGroup.addChild(dot);
             }
 
-            pressurePoints.push({ point: e.point.clone(), angle: 0, width: w });
-            lastAddedPoint = e.point.clone();
+            pressurePoints.push({ point: localPt.clone(), angle: 0, width: w });
+            lastAddedPoint = localPt.clone();
         } else {
             curPath = new P.Path({
                 strokeWidth: S.cfg.brushSize,
@@ -192,8 +182,8 @@
                 curPath.data._pendingTex = S.cfg.tex;
                 curPath.data._pendingCol = strokeCol;
             }
-            curPath.add(e.point);
-            lastAddedPoint = e.point.clone();
+            curPath.add(localPt.clone());
+            lastAddedPoint = localPt.clone();
         }
     };
 
@@ -201,8 +191,11 @@
         var P = getP();
         if (!drawing) return;
 
+        var pl = VF.pLayers[S.activeId];
+        var localPt = pl ? pl.globalToLocal(e.point) : e.point;
+
         /* ── Distance throttle: skip points that are too close ── */
-        if (isTooClose(e.point)) return;
+        if (isTooClose(localPt)) return;
 
         var usingTex = S.cfg.tex !== 'none' && VF.baseBrushes[S.cfg.tex];
 
@@ -211,10 +204,10 @@
             var w = Math.max(0.5, S.cfg.brushSize * VF.currentPressure);
 
             if (usingTex) {
-                if (pressureGuidePath) pressureGuidePath.add(e.point);
+                if (pressureGuidePath) pressureGuidePath.add(localPt.clone());
             } else {
                 var seg = new P.Path.Line({
-                    from: lastPoint, to: e.point,
+                    from: lastPoint, to: localPt.clone(),
                     strokeWidth: w,
                     strokeCap: 'round',
                     strokeColor: col
@@ -222,11 +215,11 @@
                 pressureGroup.addChild(seg);
             }
 
-            var delta = e.point.subtract(lastPoint);
+            var delta = localPt.subtract(lastPoint);
             var angle = delta.length > 0.5 ? delta.angle : (pressurePoints.length > 0 ? pressurePoints[pressurePoints.length - 1].angle : 0);
-            pressurePoints.push({ point: e.point.clone(), angle: angle, width: w });
-            lastPoint = e.point;
-            lastAddedPoint = e.point.clone();
+            pressurePoints.push({ point: localPt.clone(), angle: angle, width: w });
+            lastPoint = localPt.clone();
+            lastAddedPoint = localPt.clone();
 
             if (usingTex) {
                 var now = Date.now();
@@ -236,8 +229,8 @@
                 }
             }
         } else if (curPath) {
-            curPath.add(e.point);
-            lastAddedPoint = e.point.clone();
+            curPath.add(localPt.clone());
+            lastAddedPoint = localPt.clone();
 
             if (usingTex) {
                 var now2 = Date.now();
@@ -256,36 +249,35 @@
         var usingTex = S.cfg.tex !== 'none' && VF.baseBrushes[S.cfg.tex];
         var pl = VF.pLayers[S.activeId];
 
+        var localPt = pl ? pl.globalToLocal(e.point) : e.point;
+
         clearTexPreview();
         if (pressureGuidePath) { pressureGuidePath.remove(); pressureGuidePath = null; }
 
-        /* Reset distance tracking */
         lastAddedPoint = null;
-
         var committed = [];
 
         if (S.cfg.pressure && pressureGroup) {
-            /* ── Capture the final endpoint so the stroke ends accurately ── */
             if (pressurePoints.length > 0) {
                 var lastPP = pressurePoints[pressurePoints.length - 1];
-                var distToEnd = e.point.getDistance(lastPP.point);
+                var distToEnd = localPt.getDistance(lastPP.point);
                 if (distToEnd > 0.1) {
                     var wEnd = Math.max(0.5, S.cfg.brushSize * VF.currentPressure);
-                    var deltaEnd = e.point.subtract(lastPP.point);
+                    var deltaEnd = localPt.subtract(lastPP.point);
                     var angleEnd = deltaEnd.length > 0.5 ? deltaEnd.angle : lastPP.angle;
-                    pressurePoints.push({ point: e.point.clone(), angle: angleEnd, width: wEnd });
+                    pressurePoints.push({ point: localPt.clone(), angle: angleEnd, width: wEnd });
 
                     if (!usingTex) {
                         var col = S.cfg.autoStroke ? S.cfg.strokeCol : '#1e1e24';
                         var segEnd = new P.Path.Line({
-                            from: lastPoint, to: e.point,
+                            from: lastPoint, to: localPt.clone(),
                             strokeWidth: wEnd,
                             strokeCap: 'round',
                             strokeColor: col
                         });
                         pressureGroup.addChild(segEnd);
                     }
-                    lastPoint = e.point;
+                    lastPoint = localPt.clone();
                 }
             }
 
@@ -319,10 +311,9 @@
             pressurePoints = [];
 
         } else if (curPath) {
-            /* ── Capture the final endpoint ── */
             var lastSeg = curPath.lastSegment;
-            if (lastSeg && e.point.getDistance(lastSeg.point) > 0.1) {
-                curPath.add(e.point);
+            if (lastSeg && localPt.getDistance(lastSeg.point) > 0.1) {
+                curPath.add(localPt.clone());
             }
 
             curPath.visible = true;

@@ -8,13 +8,12 @@
     VF.tXform = tXform;
     var xOrigin = null;
     var tXformSaved = false;
+    var dragTransform = null;
 
-    /* ── Throttle state for real-time texture rebuild ── */
     var TEX_REBUILD_INTERVAL = 80;
     var lastRebuildTime = 0;
     var pendingTexGroups = new Set();
 
-    /* ── Helper: collect texture groups that own the selected segments ── */
     function collectTexGroups() {
         pendingTexGroups.clear();
         VF.selSegments.forEach(function (seg) {
@@ -25,7 +24,6 @@
         });
     }
 
-    /* ── Throttled rebuild ── */
     function flushTexRebuilds() {
         if (pendingTexGroups.size === 0) return;
         var now = Date.now();
@@ -42,6 +40,7 @@
         tXformSaved = false;
         lastRebuildTime = 0;
         pendingTexGroups.clear();
+
         var pl = VF.pLayers[S.activeId]; if (!pl) return;
 
         if (VF.selSegments.length > 0) {
@@ -50,14 +49,49 @@
                 minX = Math.min(minX, seg.point.x); minY = Math.min(minY, seg.point.y);
                 maxX = Math.max(maxX, seg.point.x); maxY = Math.max(maxY, seg.point.y);
             });
+            // Origin in LOCAL coordinate space
             xOrigin = new P.Point((minX + maxX) / 2, (minY + maxY) / 2);
             collectTexGroups();
+
+            // Snapshot the original coordinates so non-destructive dragging won't jitter
+            tXform.origSegs = [];
+            VF.selSegments.forEach(function (seg) {
+                tXform.origSegs.push({
+                    seg: seg,
+                    pt: seg.point.clone(),
+                    hIn: seg.handleIn.clone(),
+                    hOut: seg.handleOut.clone()
+                });
+            });
+
+            // Calculate starting angle and distance mapped to global space
+            var globalOrigin = pl.localToGlobal(xOrigin);
+            tXform.startAngle = Math.atan2(e.point.y - globalOrigin.y, e.point.x - globalOrigin.x) * (180 / Math.PI);
+            tXform.startDist = e.point.getDistance(globalOrigin);
         } else {
-            xOrigin = pl.children.length > 0 ? pl.bounds.center : e.point;
+            // LAYER TRANSFORM MODE
+            var l = VF.AL();
+            if (l) {
+                if (!l.transforms) l.transforms = {};
+                if (l.transforms[S.tl.frame] === undefined) {
+                    l.transforms[S.tl.frame] = VF.getLayerTransform(l, S.tl.frame);
+                    if (VF.uiTimeline) VF.uiTimeline();
+                }
+                dragTransform = Object.assign({}, l.transforms[S.tl.frame]);
+
+                var cx = S.canvas.w / 2, cy = S.canvas.h / 2;
+                var globalOrigin = new P.Point(cx + dragTransform.x, cy + dragTransform.y);
+                tXform.startAngle = Math.atan2(e.point.y - globalOrigin.y, e.point.x - globalOrigin.x) * (180 / Math.PI);
+                tXform.startDist = e.point.getDistance(globalOrigin);
+                tXform.origRotation = dragTransform.rotation;
+                tXform.origScaleX = dragTransform.scaleX;
+                tXform.origScaleY = dragTransform.scaleY;
+            }
         }
     };
 
     tXform.onMouseDrag = function (e) {
+        var P = getP();
         if (VF.isPanInput(e.event)) return;
         var pl = VF.pLayers[S.activeId]; if (!pl || pl.children.length === 0) return;
 
@@ -68,54 +102,83 @@
 
         if (VF.selSegments.length > 0) {
             if (S.tool === 'translate') {
-                VF.selSegments.forEach(function (seg) { seg.point = seg.point.add(e.delta); });
+                // Convert workspace project e.delta into local layer delta to prevent over/under-scaling
+                var localDelta = pl.globalToLocal(e.point).subtract(pl.globalToLocal(e.point.subtract(e.delta)));
+                VF.selSegments.forEach(function (seg) { seg.point = seg.point.add(localDelta); });
             } else if (S.tool === 'rotate') {
-                var ang = e.delta.x * 0.4;
-                VF.selSegments.forEach(function (seg) {
-                    var pt = seg.point.subtract(xOrigin);
-                    pt.angle += ang;
-                    seg.point = pt.add(xOrigin);
-                    seg.handleIn.angle += ang;
-                    seg.handleOut.angle += ang;
+                var globalOrigin = pl.localToGlobal(xOrigin);
+                var curAngle = Math.atan2(e.point.y - globalOrigin.y, e.point.x - globalOrigin.x) * (180 / Math.PI);
+                var deltaAng = curAngle - tXform.startAngle;
+                if (e.event.shiftKey) deltaAng = Math.round(deltaAng / 15) * 15;
+
+                var rad = deltaAng * Math.PI / 180;
+                var cos = Math.cos(rad), sin = Math.sin(rad);
+
+                tXform.origSegs.forEach(function (orig) {
+                    var dx = orig.pt.x - xOrigin.x, dy = orig.pt.y - xOrigin.y;
+                    orig.seg.point = new P.Point(dx * cos - dy * sin + xOrigin.x, dx * sin + dy * cos + xOrigin.y);
+
+                    var hInX = orig.hIn.x, hInY = orig.hIn.y;
+                    orig.seg.handleIn = new P.Point(hInX * cos - hInY * sin, hInX * sin + hInY * cos);
+
+                    var hOutX = orig.hOut.x, hOutY = orig.hOut.y;
+                    orig.seg.handleOut = new P.Point(hOutX * cos - hOutY * sin, hOutX * sin + hOutY * cos);
                 });
             } else if (S.tool === 'scale') {
-                var fac = 1 + e.delta.x * 0.004;
-                VF.selSegments.forEach(function (seg) {
-                    var pt = seg.point.subtract(xOrigin);
-                    seg.point = pt.multiply(fac).add(xOrigin);
-                    seg.handleIn = seg.handleIn.multiply(fac);
-                    seg.handleOut = seg.handleOut.multiply(fac);
+                var globalOrigin = pl.localToGlobal(xOrigin);
+                var curDist = e.point.getDistance(globalOrigin);
+                var fac = tXform.startDist > 0.1 ? curDist / tXform.startDist : 1;
+                if (e.event.shiftKey) fac = Math.round(fac * 10) / 10;
+
+                tXform.origSegs.forEach(function (orig) {
+                    var pt = orig.pt.subtract(xOrigin);
+                    orig.seg.point = pt.multiply(fac).add(xOrigin);
+                    orig.seg.handleIn = orig.hIn.multiply(fac);
+                    orig.seg.handleOut = orig.hOut.multiply(fac);
                 });
             }
             VF.showHandles();
-
-            /* ── Throttled real-time texture rebuild for vertex transforms ── */
             flushTexRebuilds();
         } else {
-            pl.children.forEach(function (c) {
-                if (c._isH) return;
-
-                if (S.tool === 'translate') c.position = c.position.add(e.delta);
-                else if (S.tool === 'rotate') c.rotate(e.delta.x * 0.4, xOrigin);
-                else if (S.tool === 'scale') {
-                    var sw = c.strokeWidth;
-                    c.scale(1 + e.delta.x * 0.004, xOrigin);
-                    c.strokeWidth = sw;
+            // LAYER TRANSFORM (no selection)
+            var l = VF.AL();
+            if (l && dragTransform) {
+                if (S.tool === 'translate') {
+                    // Translation is applied natively in global project space relative to standard origin
+                    dragTransform.x += e.delta.x;
+                    dragTransform.y += e.delta.y;
+                } else if (S.tool === 'rotate') {
+                    var cx = S.canvas.w / 2, cy = S.canvas.h / 2;
+                    var globalOrigin = new P.Point(cx + dragTransform.x, cy + dragTransform.y);
+                    var curAngle = Math.atan2(e.point.y - globalOrigin.y, e.point.x - globalOrigin.x) * (180 / Math.PI);
+                    var deltaAng = curAngle - tXform.startAngle;
+                    if (e.event.shiftKey) deltaAng = Math.round(deltaAng / 15) * 15;
+                    dragTransform.rotation = tXform.origRotation + deltaAng;
+                } else if (S.tool === 'scale') {
+                    var cx2 = S.canvas.w / 2, cy2 = S.canvas.h / 2;
+                    var globalOrigin2 = new P.Point(cx2 + dragTransform.x, cy2 + dragTransform.y);
+                    var curDist2 = e.point.getDistance(globalOrigin2);
+                    var fac2 = tXform.startDist > 0.1 ? curDist2 / tXform.startDist : 1;
+                    if (e.event.shiftKey) fac2 = Math.round(fac2 * 10) / 10;
+                    dragTransform.scaleX = tXform.origScaleX * fac2;
+                    dragTransform.scaleY = tXform.origScaleY * fac2;
                 }
-            });
+                l.transforms[S.tl.frame] = Object.assign({}, dragTransform);
+                VF.render();
+            }
         }
     };
 
     tXform.onMouseUp = function (e) {
         if (VF.isPanInput(e.event)) return;
 
-        /* Final un-throttled rebuild for all affected texture groups */
         if (VF.selSegments.length > 0) {
             var pl = VF.pLayers[S.activeId];
             if (pl) pl.children.forEach(VF.rebuildTextureRaster);
         }
-        pendingTexGroups.clear();
 
+        pendingTexGroups.clear();
+        dragTransform = null;
         VF.saveFrame();
     };
 

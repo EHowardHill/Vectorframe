@@ -4,24 +4,22 @@
     var S = VF.S, P;
     function getP() { if (!P) P = VF.P; return P; }
 
-    /* Recursively tint every stroke/fill in an item tree */
-    /* Updated to apply alpha directly to the colors to bypass the Group Opacity bug */
     function tintTree(item, tintColor, skinOpacity) {
         if (!item) return;
 
         if (item.className === 'Raster') {
-            item.opacity = skinOpacity * 0.6; // Slightly dim images so they don't overpower vectors
+            item.opacity = skinOpacity * 0.6;
             return;
         }
 
         if (item.strokeColor) {
             var sc = tintColor.clone();
-            sc.alpha = skinOpacity; // Map the opacity exactly to the slider's 0-1 percentage
+            sc.alpha = skinOpacity;
             item.strokeColor = sc;
         }
         if (item.fillColor) {
             var fc = tintColor.clone();
-            fc.alpha = skinOpacity * 0.3; // Make fills more transparent than strokes to reduce clutter
+            fc.alpha = skinOpacity * 0.3;
             item.fillColor = fc;
         }
 
@@ -35,13 +33,11 @@
         var P = getP();
         var f = S.tl.frame;
 
-        /* ── Flush dedicated Onion Skin layers ── */
         VF.onionLayerBg.removeChildren();
         VF.onionLayerFg.removeChildren();
 
         var sorted = [].concat(S.layers).sort(function (a, b) { return a.z - b.z; });
         sorted.forEach(function (l, i) {
-            /* Ensure layer has all settings (safe for old projects) */
             if (VF.ensureLayerSettings) VF.ensureLayerSettings(l);
 
             var pl = VF.pLayers[l.id]; if (!pl) return;
@@ -49,7 +45,6 @@
 
             VF.loadFrame(l.id, f);
 
-            // Prevent Paper.js Layer parallax bug by applying opacity to the Raster child
             if (l.type === 'image') {
                 pl.opacity = 1;
                 pl.children.forEach(function (c) { c.opacity = l.opacity; });
@@ -57,17 +52,24 @@
                 pl.opacity = l.opacity;
             }
 
-            /* ── Apply blend mode ── */
             if (VF.applyBlendMode) VF.applyBlendMode(l, pl);
 
-            // Keeps normal artwork perfectly sandwiched between the bg and fg Onion Layers
+            // ── Apply Layer-Level Matrix Transformations ──
+            if (VF.getLayerTransform) {
+                var xf = VF.getLayerTransform(l, f);
+                var cx = S.canvas.w / 2, cy = S.canvas.h / 2;
+                var m = new P.Matrix();
+                m.translate(cx + xf.x, cy + xf.y);
+                m.rotate(xf.rotation);
+                m.scale(xf.scaleX, xf.scaleY);
+                m.translate(-cx, -cy);
+                pl.matrix = m;
+            }
+
             if (i === 0) pl.insertAbove(VF.onionLayerBg);
             else pl.insertAbove(VF.pLayers[sorted[i - 1].id]);
         });
 
-        /* ───────────────────────────────────────────────
-                    ADVANCED ONION SKINNING
-           ─────────────────────────────────────────────── */
         if (S.cfg.onion && !S.tl.playing) {
 
             var oldZoom = VF.view.zoom;
@@ -82,8 +84,8 @@
 
                 var isFuture = skin.rel ? skin.val > 0 : (skin.val - 1) > f;
                 var tintColor = isFuture
-                    ? new P.Color(0.2, 0.8, 0.2)  // Green
-                    : new P.Color(0.2, 0.4, 1.0); // Blue
+                    ? new P.Color(0.2, 0.8, 0.2)
+                    : new P.Color(0.2, 0.4, 1.0);
 
                 var skinOpacity = skin.op / 100;
 
@@ -102,6 +104,18 @@
 
                         var skinGroup = new P.Group();
                         targetLayer.addChild(skinGroup);
+
+                        // ── Apply transforms to onion skins ──
+                        if (VF.getLayerTransform) {
+                            var xfo = VF.getLayerTransform(l, targetF);
+                            var cxo = S.canvas.w / 2, cyo = S.canvas.h / 2;
+                            var mo = new P.Matrix();
+                            mo.translate(cxo + xfo.x, cyo + xfo.y);
+                            mo.rotate(xfo.rotation);
+                            mo.scale(xfo.scaleX, xfo.scaleY);
+                            mo.translate(-cxo, -cyo);
+                            skinGroup.matrix = mo;
+                        }
 
                         if (l.type === 'vector') {
                             d.forEach(function (j) {
@@ -128,12 +142,10 @@
                                             var tempGroup = new P.Group({ insert: false });
                                             var guide = tempGroup.importJSON(parsed.pathJSON);
                                             if (guide) {
-                                                guide.remove(); // detach from temp
+                                                guide.remove();
                                                 guide.visible = true;
-
                                                 var tc2 = tintColor.clone();
                                                 tc2.alpha = skinOpacity;
-
                                                 guide.strokeColor = tc2;
                                                 guide.strokeWidth = parsed.size || 2;
                                                 guide.fillColor = null;
@@ -165,55 +177,46 @@
             VF.view.update();
         }
 
-        /* ───────────────────────────────────────────────
-                    SKETCH WOBBLE POST-PROCESS
-           ─────────────────────────────────────────────── */
         if (VF.applyWobbleEffects) {
             VF.applyWobbleEffects(sorted, f);
         }
 
-        /* ───────────────────────────────────────────────
-                            GLOBAL GRAIN EFFECT
-           ─────────────────────────────────────────────── */
         if (VF.grainGroup && VF.grainRaster && VF.grainClip) {
             if (S.cfg.grain) {
                 VF.grainGroup.visible = true;
                 VF.grainRaster.opacity = (S.cfg.grainAmt / 100) * 0.5;
 
-                /* FIX: Only rebuild the clip rectangle when the canvas
-                   size actually changes. Use insertChild(0, ...) to
-                   guarantee the clip lands at index 0 (the mask slot). */
-                var clipB = VF.grainClip.bounds;
-                if (Math.abs(clipB.width - S.canvas.w) > 0.5 ||
-                    Math.abs(clipB.height - S.canvas.h) > 0.5 ||
-                    Math.abs(clipB.x) > 0.5 ||
-                    Math.abs(clipB.y) > 0.5) {
-                    VF.grainClip.remove();
-                    var newClip = new P.Path.Rectangle({
-                        point: [0, 0],
-                        size: [S.canvas.w, S.canvas.h],
-                        insert: false
-                    });
-                    VF.grainGroup.insertChild(0, newClip);
-                    VF.grainClip = newClip;
-                }
+                var cam = VF.getCameraAtFrame ? VF.getCameraAtFrame(f) : { x: S.canvas.w / 2, y: S.canvas.h / 2, zoom: 1, rotation: 0 };
 
-                // Reset matrix to identity so scaling doesn't compound infinitely
+                VF.grainClip.remove();
+                var newClip = new P.Path.Rectangle({
+                    point: [-S.canvas.w / 2, -S.canvas.h / 2],
+                    size: [S.canvas.w, S.canvas.h],
+                    insert: false
+                });
+                newClip.position = new P.Point(cam.x, cam.y);
+                newClip.scale(1 / cam.zoom);
+                newClip.rotate(cam.rotation);
+
+                VF.grainGroup.insertChild(0, newClip);
+                VF.grainClip = newClip;
+
                 VF.grainRaster.matrix = new P.Matrix();
-
-                // Scale the grain so it covers the canvas + 60% padding
-                var scaleX = (S.canvas.w * 1.6) / 1024;
-                var scaleY = (S.canvas.h * 1.6) / 1024;
+                var scaleX = (S.canvas.w * 1.6) / 1024 / cam.zoom;
+                var scaleY = (S.canvas.h * 1.6) / 1024 / cam.zoom;
                 VF.grainRaster.scale(Math.max(1, scaleX, scaleY));
+                VF.grainRaster.rotate(cam.rotation);
 
-                // Create a per-frame stable seed so the offset "boils"
                 var rand = VF.seededRandom(f * 1234);
+                var ox = (rand() - 0.5) * (S.canvas.w * 0.5) / cam.zoom;
+                var oy = (rand() - 0.5) * (S.canvas.h * 0.5) / cam.zoom;
 
-                // Shift randomly within the 60% padding bounds to hide edges
-                var ox = (rand() - 0.5) * (S.canvas.w * 0.5);
-                var oy = (rand() - 0.5) * (S.canvas.h * 0.5);
+                var rad = cam.rotation * Math.PI / 180;
+                var cos = Math.cos(rad), sin = Math.sin(rad);
+                var rox = ox * cos - oy * sin;
+                var roy = ox * sin + oy * cos;
 
-                VF.grainRaster.position = new P.Point(S.canvas.w / 2 + ox, S.canvas.h / 2 + oy);
+                VF.grainRaster.position = new P.Point(cam.x + rox, cam.y + roy);
             } else {
                 VF.grainGroup.visible = false;
             }
@@ -224,6 +227,7 @@
 
         VF.fgLayer.bringToFront();
         VF.drawBorder();
+        if (VF.renderCameraOverlay) VF.renderCameraOverlay();
         VF.uiFrameDisp();
         VF.uiPlayhead();
     };
