@@ -277,6 +277,52 @@
                 e.preventDefault();
                 if (VF.selSegments.length > 0) {
                     cutSelectedItems();
+                } else if (VF.tlSelection && VF.tlSelection.length > 0) {
+                    // 1. Copy
+                    var minF = Math.min.apply(null, VF.tlSelection.map(function (s) { return s.f; }));
+                    var sortedLayers = [].concat(S.layers).sort(function (a, b) { return b.z - a.z; });
+                    var activeLIndex = sortedLayers.findIndex(function (lyr) { return lyr.id === S.activeId; });
+
+                    S.clipNodes = [];
+                    VF.tlSelection.forEach(function (sel) {
+                        if (sel.l === '__camera') return;
+                        var lyr = S.layers.find(function (x) { return x.id === sel.l; });
+                        var lIndex = sortedLayers.findIndex(function (x) { return x.id === sel.l; });
+                        if (!lyr) return;
+                        var data = sel.type === 'transform' ? (lyr.transforms ? lyr.transforms[sel.f] : null) : lyr.frames[sel.f];
+                        if (data) {
+                            S.clipNodes.push({
+                                fOffset: sel.f - minF, lOffset: lIndex - activeLIndex, type: sel.type,
+                                data: JSON.parse(JSON.stringify(data))
+                            });
+                        }
+                    });
+
+                    // 2. Delete
+                    VF.saveHistory();
+                    var reloadLayers = new Set();
+
+                    VF.tlSelection.forEach(function (sel) {
+                        if (sel.l === '__camera') return;
+                        var lyr = S.layers.find(function (x) { return x.id === sel.l; });
+                        if (lyr && !lyr.locked) {
+                            if (sel.type === 'transform' && lyr.transforms) delete lyr.transforms[sel.f];
+                            else if (lyr.frames[sel.f] !== undefined) {
+                                delete lyr.frames[sel.f];
+                                if (lyr.cache) delete lyr.cache[sel.f];
+                                if (sel.f === S.tl.frame) reloadLayers.add(lyr.id);
+                            }
+                        }
+                    });
+
+                    reloadLayers.forEach(function (id) {
+                        VF.loadFrame(id, S.tl.frame);
+                    });
+
+                    VF.toast(S.clipNodes.length + ' keyframes cut');
+                    VF.tlSelection = [];
+                    VF.render();
+                    VF.uiTimeline();
                 }
                 return;
             }
@@ -285,11 +331,49 @@
                 e.preventDefault();
                 if (VF.selSegments.length > 0) {
                     copySelectedItems();
+                } else if (VF.tlSelection && VF.tlSelection.length > 0) {
+                    // BULK TIMELINE COPY
+                    var minF = Math.min.apply(null, VF.tlSelection.map(function (s) { return s.f; }));
+                    var sortedLayers = [].concat(S.layers).sort(function (a, b) { return b.z - a.z; });
+                    var activeLIndex = sortedLayers.findIndex(function (lyr) { return lyr.id === S.activeId; });
+
+                    S.clipNodes = [];
+                    VF.tlSelection.forEach(function (sel) {
+                        // Support copying camera frames
+                        if (sel.l === '__camera') {
+                            if (S.camera && S.camera.frames && S.camera.frames[sel.f] !== undefined) {
+                                S.clipNodes.push({
+                                    fOffset: sel.f - minF, lOffset: '__camera', type: 'camera',
+                                    data: JSON.parse(JSON.stringify(S.camera.frames[sel.f]))
+                                });
+                            }
+                            return;
+                        }
+
+                        var lyr = S.layers.find(function (x) { return x.id === sel.l; });
+                        var lIndex = sortedLayers.findIndex(function (x) { return x.id === sel.l; });
+                        if (!lyr) return;
+
+                        var data = sel.type === 'transform' ? (lyr.transforms ? lyr.transforms[sel.f] : null) : lyr.frames[sel.f];
+                        if (data) {
+                            S.clipNodes.push({
+                                fOffset: sel.f - minF,
+                                lOffset: lIndex - activeLIndex,
+                                type: sel.type,
+                                data: JSON.parse(JSON.stringify(data))
+                            });
+                        }
+                    });
+
+                    S.clip = null; // Clear single clip to prevent context menu confusion
+                    VF.toast(S.clipNodes.length + ' keyframes copied');
                 } else {
+                    // SINGLE FRAME COPY (Legacy)
                     var l = VF.AL();
                     if (l) {
                         var res = VF.getResolvedFrame(l, S.tl.frame);
                         S.clip = res && res.data ? JSON.parse(JSON.stringify(res.data)) : null;
+                        S.clipNodes = null;
                         VF.toast(S.clip ? 'Frame copied' : 'Blank frame copied');
                     }
                 }
@@ -302,14 +386,59 @@
 
                 if (VF.itemClip && VF.itemClip.length > 0 && inSelectTool) {
                     pasteItems();
-                } else {
-                    var l2 = VF.AL();
-                    if (l2) {
-                        /* FIX: Check if layer is locked before frame paste */
-                        if (l2.locked) {
-                            VF.toast('Layer is locked');
+                } else if (S.clipNodes && S.clipNodes.length > 0) {
+                    // BULK TIMELINE PASTE
+                    VF.saveHistory();
+                    var sortedLayers = [].concat(S.layers).sort(function (a, b) { return b.z - a.z; });
+                    var activeLIndex = sortedLayers.findIndex(function (lyr) { return lyr.id === S.activeId; });
+                    var pastedCount = 0;
+                    var reloadLayers = new Set();
+
+                    S.clipNodes.forEach(function (node) {
+                        var targetF = S.tl.frame + node.fOffset;
+
+                        // Dynamically extend timeline length if pasting past the end
+                        while (targetF >= S.tl.max) {
+                            S.tl.max++;
+                            $('#pref-end, #in-endframe').val(S.tl.max);
+                        }
+
+                        if (node.lOffset === '__camera') {
+                            if (!S.camera) S.camera = { frames: {} };
+                            S.camera.frames[targetF] = JSON.parse(JSON.stringify(node.data));
+                            pastedCount++;
                             return;
                         }
+
+                        var targetLIndex = activeLIndex + node.lOffset;
+                        if (targetLIndex >= 0 && targetLIndex < sortedLayers.length) {
+                            var tgtLyr = sortedLayers[targetLIndex];
+                            if (tgtLyr.locked) return;
+
+                            if (node.type === 'transform') {
+                                if (!tgtLyr.transforms) tgtLyr.transforms = {};
+                                tgtLyr.transforms[targetF] = JSON.parse(JSON.stringify(node.data));
+                            } else {
+                                tgtLyr.frames[targetF] = JSON.parse(JSON.stringify(node.data));
+                                if (tgtLyr.cache) delete tgtLyr.cache[targetF];
+                                if (targetF === S.tl.frame) reloadLayers.add(tgtLyr.id);
+                            }
+                            pastedCount++;
+                        }
+                    });
+
+                    reloadLayers.forEach(function (id) { VF.loadFrame(id, S.tl.frame); });
+
+                    if (pastedCount > 0) {
+                        VF.render();
+                        VF.uiTimeline();
+                        VF.toast(pastedCount + ' keyframes pasted');
+                    }
+                } else {
+                    // SINGLE FRAME PASTE (Legacy)
+                    var l2 = VF.AL();
+                    if (l2) {
+                        if (l2.locked) { VF.toast('Layer is locked'); return; }
                         VF.saveHistory();
                         l2.frames[S.tl.frame] = S.clip ? JSON.parse(JSON.stringify(S.clip)) : [];
                         if (!l2.cache) l2.cache = {};
@@ -424,12 +553,12 @@
             }
         }
         else if (k === 'delete' || k === 'backspace') {
-            /* FIX: Check if layer is locked before deleting selected items */
-            if (VF.isLocked && VF.isLocked()) {
-                VF.toast('Layer is locked');
-                return;
-            }
             if (VF.selSegments.length > 0) {
+                /* Canvas Item Deletion */
+                if (VF.isLocked && VF.isLocked()) {
+                    VF.toast('Layer is locked');
+                    return;
+                }
                 VF.saveHistory();
                 var items = VF.getSelectedItems();
                 items.forEach(function (item) { item.remove(); });
@@ -438,6 +567,49 @@
                 VF.saveFrame();
                 VF.uiTimeline();
                 VF.render();
+            } else if (VF.tlSelection && VF.tlSelection.length > 0) {
+                /* Timeline Node Deletion */
+                VF.saveHistory();
+                var reloadLayers = new Set();
+                var deletedCount = 0;
+
+                VF.tlSelection.forEach(function (sel) {
+                    if (sel.l === '__camera') {
+                        if (S.camera && S.camera.frames && S.camera.frames[sel.f] !== undefined) {
+                            delete S.camera.frames[sel.f];
+                            deletedCount++;
+                        }
+                        return;
+                    }
+
+                    var lyr = S.layers.find(function (x) { return x.id === sel.l; });
+                    if (lyr && !lyr.locked) {
+                        if (sel.type === 'transform' && lyr.transforms && lyr.transforms[sel.f] !== undefined) {
+                            delete lyr.transforms[sel.f];
+                            deletedCount++;
+                        } else if (lyr.frames[sel.f] !== undefined) {
+                            delete lyr.frames[sel.f];
+                            if (lyr.cache) delete lyr.cache[sel.f];
+                            if (sel.f === S.tl.frame) reloadLayers.add(lyr.id);
+                            deletedCount++;
+                        }
+                    }
+                });
+
+                // Reload the exposed frames for any layers we just punched a hole in
+                reloadLayers.forEach(function (id) {
+                    VF.loadFrame(id, S.tl.frame);
+                });
+
+                if (deletedCount > 0) {
+                    VF.toast(deletedCount + ' keyframe(s) deleted');
+                } else {
+                    VF.toast('Target layers are locked');
+                }
+
+                VF.tlSelection = [];
+                VF.render();
+                VF.uiTimeline();
             }
         }
     });

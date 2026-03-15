@@ -18,17 +18,14 @@
 
         if (prev === -1) return null;
 
-        // Return standard static frame if no next frame or tweening is disabled
         if (prev === f || next === -1 || !layer.tweens || !layer.tweens[prev]) {
             return { keyFrame: prev, data: layer.frames[prev] };
         }
 
-        // TWEENING ENGINE
         var t = (f - prev) / (next - prev);
         var dataA = layer.frames[prev];
         var dataB = layer.frames[next];
 
-        // 1. Image Layer Tweening (Matrix Lerp)
         if (layer.type === 'image') {
             if (!dataA.matrix || !dataB.matrix) return { keyFrame: f, data: dataA };
             var mA = new P.Matrix(dataA.matrix[0], dataA.matrix[1], dataA.matrix[2], dataA.matrix[3], dataA.matrix[4], dataA.matrix[5]).decompose();
@@ -45,7 +42,6 @@
             return { keyFrame: f, data: { matrix: m.values }, isTween: true };
         }
 
-        // 2. Vector Layer Tweening (Deep Tree & Shape Interpolation)
         if (layer.type === 'vector') {
             if (dataA.length !== dataB.length) return { keyFrame: prev, data: dataA };
 
@@ -126,7 +122,7 @@
                         tmpA2.remove(); tmpB2.remove();
                     }
                 } catch (e) {
-                    resultData.push(dataA[idx]); // Fallback if parse fails
+                    resultData.push(dataA[idx]);
                 }
             }
             return { keyFrame: f, data: resultData, isTween: true };
@@ -174,7 +170,7 @@
                         var gClone = guide.clone({ insert: false });
                         gClone.transform(mat);
                         gClone.visible = true;
-                        customData.pathJSON = gClone.exportJSON();
+                        customData.pathJSON = gClone.exportJSON({ asString: true });
                     }
                 }
                 out.push(JSON.stringify(customData));
@@ -183,10 +179,10 @@
 
             // --- STANDARD VECTOR ITEMS ---
             if (c.className === 'Path' || c.className === 'CompoundPath' || c.className === 'Shape' || c.className === 'Group') {
-                var clone = c.clone({ insert: false });
-                out.push(clone.exportJSON());
+                out.push(c.exportJSON({ asString: true }));
             }
         });
+
         return out;
     };
 
@@ -330,7 +326,6 @@
         }
     };
 
-    // ── Dedicated Non-Destructive Layer-Level Transformations ──
     VF.getLayerTransform = function (layer, f) {
         var def = { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0 };
         if (!layer.transforms) return def;

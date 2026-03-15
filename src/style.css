@@ -682,6 +682,11 @@ input[type="range"]::-webkit-slider-thumb {
     background: var(--bg-hover);
 }
 
+.tl-dot.tl-selected {
+    box-shadow: 0 0 0 2px var(--bg-dark), 0 0 0 4px var(--accent) !important;
+    z-index: 10;
+}
+
 /* ═══════════════════════════════════════════════════
    MODAL
    ═══════════════════════════════════════════════════ */
@@ -1167,4 +1172,17 @@ input[type="range"]::-webkit-slider-thumb {
 
 .cam-dot.keyframe {
     border: 2px solid #ff3366;
+}
+
+/* ═══════════════════════════════════════════════════
+   TIMELINE MARQUEE SELECTION
+   ═══════════════════════════════════════════════════ */
+.tl-marquee {
+    position: absolute;
+    background: rgba(74, 144, 226, 0.25);
+    border: 1px solid rgba(74, 144, 226, 0.8);
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 50;
+    display: none;
 }

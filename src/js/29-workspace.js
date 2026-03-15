@@ -11,7 +11,8 @@
     VF.wsPrefs = {
         theme: 'system',
         canvasBgColor: '#ffffff',
-        canvasBgTransparent: false
+        canvasBgTransparent: false,
+        tabletMode: 'ink'
     };
 
     function loadWorkspacePrefs() {
@@ -22,6 +23,7 @@
                 if (parsed.theme) VF.wsPrefs.theme = parsed.theme;
                 if (parsed.canvasBgColor) VF.wsPrefs.canvasBgColor = parsed.canvasBgColor;
                 if (parsed.canvasBgTransparent !== undefined) VF.wsPrefs.canvasBgTransparent = parsed.canvasBgTransparent;
+                if (parsed.tabletMode) VF.wsPrefs.tabletMode = parsed.tabletMode;
             }
         } catch (e) { }
     }
@@ -61,6 +63,7 @@
         $('#sel-theme').val(VF.wsPrefs.theme);
         $('#clr-ws-bg').val(VF.wsPrefs.canvasBgColor);
         $('#chk-ws-transparent').prop('checked', VF.wsPrefs.canvasBgTransparent);
+        $('#sel-tablet-mode').val(VF.wsPrefs.tabletMode);
 
         if (VF.wsPrefs.canvasBgTransparent) {
             $('#clr-ws-bg').css('opacity', '0.4').css('pointer-events', 'none');
@@ -74,6 +77,12 @@
             VF.wsPrefs.theme = $(this).val();
             applyTheme();
             saveWorkspacePrefs();
+        });
+
+        $('#sel-tablet-mode').on('change', function () {
+            VF.wsPrefs.tabletMode = $(this).val();
+            saveWorkspacePrefs();
+            VF.toast('Tablet mode set to ' + ($(this).val() === 'ink' ? 'Windows Ink' : 'Legacy / Wintab'));
         });
 
         $('#clr-ws-bg').on('input change', function () {

@@ -69,37 +69,14 @@
     $(document).ready(function () {
         var $list = $('#layers-list');
 
-        // Double-click to rename layer
-        $list.on('dblclick', '.lyr-name', function (e) {
+        // Double-click layer to open settings
+        $list.on('dblclick', '.layer-item', function (e) {
+            // Ignore the double click if the user is clicking the visibility toggle or other buttons
+            if ($(e.target).closest('.vbtn').length) return;
+
             e.stopPropagation();
-            var $span = $(this);
-            var id = +$span.closest('.layer-item').data('id');
-            var layer = S.layers.find(function (l) { return l.id === id; });
-            if (!layer) return;
-
-            var $input = $('<input class="lyr-name-input" type="text">')
-                .val(layer.name)
-                .css({
-                    flex: 1, background: 'var(--bg-dark)', border: '1px solid var(--accent)',
-                    color: 'var(--text-primary)', fontSize: '11px', padding: '0 4px',
-                    borderRadius: '3px', outline: 'none', width: '100%'
-                });
-            $span.replaceWith($input);
-            $input.focus().select();
-
-            function commit() {
-                var val = $input.val().trim();
-                if (val) layer.name = val;
-                VF.uiLayers();
-                VF.uiTimeline();
-            }
-            $input.on('blur', commit);
-            $input.on('keydown', function (ev) {
-                if (ev.key === 'Enter') { ev.preventDefault(); commit(); }
-                if (ev.key === 'Escape') { ev.preventDefault(); VF.uiLayers(); VF.uiTimeline(); }
-                ev.stopPropagation();
-            });
-            $input.on('keyup keypress', function (ev) { ev.stopPropagation(); });
+            var id = +$(this).data('id');
+            VF.openLayerSettings(id);
         });
 
         // Settings gear button
@@ -119,14 +96,30 @@
         //  CUSTOM POINTER-BASED DRAG ENGINE
         // ═══════════════════════════════════════════════════
         var layerDrag = null;
+        var lastLyrClickTime = 0;
+        var lastLyrClickId = null;
 
         $list.on('pointerdown', '.layer-item', function (e) {
             if (e.button !== 0 || $(e.target).closest('.vbtn, .lyr-name-input, .lyr-settings-btn').length) return;
 
+            var id = +$(this).data('id');
+            var now = Date.now();
+
+            // Detect double-click manually because preventDefault() blocks native dblclick
+            if (lastLyrClickId === id && (now - lastLyrClickTime) < 400 && $(e.target).closest('.lyr-name').length) {
+                e.preventDefault();
+                lastLyrClickTime = 0; // Reset
+                $(e.target).closest('.lyr-name').trigger('dblclick');
+                return;
+            }
+
+            lastLyrClickTime = now;
+            lastLyrClickId = id;
+
             e.preventDefault();
 
             layerDrag = {
-                id: +$(this).data('id'),
+                id: id,
                 el: $(this),
                 startX: e.clientX,
                 startY: e.clientY,

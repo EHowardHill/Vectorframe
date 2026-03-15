@@ -3,6 +3,7 @@
 
     var S = VF.S;
     VF._isDraggingTimeline = false;
+    VF.tlSelection = [];
 
     VF.uiFrameDisp = function () {
         $('#frame-disp').text((S.tl.frame + 1) + ' / ' + S.tl.max);
@@ -103,7 +104,9 @@
                 var content = '';
                 if (isKey) {
                     var twCls = (l.tweens && l.tweens[i]) ? ' tween' : '';
-                    content = '<div class="tl-dot keyframe' + twCls + '" data-f="' + i + '" data-l="' + l.id + '"></div>';
+                    // Check if this node is in our selection array
+                    var selCls = VF.tlSelection.find(function (s) { return s.f === i && s.l === l.id && s.type === 'draw'; }) ? ' tl-selected' : '';
+                    content = '<div class="tl-dot keyframe' + twCls + selCls + '" data-f="' + i + '" data-l="' + l.id + '"></div>';
                 } else if (activeKey !== null) {
                     content = '<div class="tl-exposure"></div>';
                 }
@@ -117,7 +120,8 @@
             for (var i = 0; i < max; i++) {
                 var cc = i === cur ? ' cur' : '';
                 var isTKey = l.transforms[i] !== undefined;
-                var content = isTKey ? '<div class="tl-dot keyframe tween" data-f="' + i + '" data-l="' + l.id + '" data-type="transform" style="background:var(--success); border-color:var(--success); transform:rotate(0); border-radius:1px; width:6px; height:6px; left:5px; top:6px;"></div>' : '';
+                var tSelCls = VF.tlSelection.find(function (s) { return s.f === i && s.l === l.id && s.type === 'transform'; }) ? ' tl-selected' : '';
+                var content = isTKey ? '<div class="tl-dot keyframe tween' + tSelCls + '" data-f="' + i + '" data-l="' + l.id + '" data-type="transform" style="background:var(--success); border-color:var(--success); transform:rotate(0); border-radius:1px; width:6px; height:6px; left:5px; top:6px;"></div>' : '';
                 tCells += '<div class="tl-cell' + cc + '" data-f="' + i + '" data-l="' + l.id + '" data-type="transform" style="position:relative">' + content + '</div>';
             }
             rows += '<div class="tl-row" data-l="' + l.id + '" data-type="transform" style="background:var(--bg-hover)">' + tCells + '</div>';
@@ -167,8 +171,84 @@
         var $dotCtx = $('#dot-ctx');
 
         $tlRows.on('click', '.tl-cell', function (e) {
-            if (e.button !== 0 || $(e.target).hasClass('tl-dot')) return;
-            VF.goFrame(+$(this).data('f'));
+            if (_wasMarqueeDragging) return; // Block click if we just finished drawing a selection box
+            if (e.button !== 0) return;
+
+            var f = +$(this).data('f');
+            var l = $(this).data('l'); // can be '__camera' or layer ID
+            var type = $(this).data('type') || 'draw';
+            var $dot = $(this).find('.tl-dot');
+
+            // Shift+Click: 2D Range Select across layers and frames
+            if (e.shiftKey && VF.tlSelection.length > 0) {
+                var lastSel = VF.tlSelection[VF.tlSelection.length - 1];
+
+                var minF = Math.min(lastSel.f, f);
+                var maxF = Math.max(lastSel.f, f);
+
+                // Find the index of lastSel.l and current l in the rendered DOM order
+                var $rows = $('.tl-row');
+                var r1 = $rows.index($('.tl-row[data-l="' + lastSel.l + '"]').filter(function () { return ($(this).data('type') || 'draw') === lastSel.type }));
+                var r2 = $rows.index($('.tl-row[data-l="' + l + '"]').filter(function () { return ($(this).data('type') || 'draw') === type }));
+
+                if (r1 > -1 && r2 > -1) {
+                    var minR = Math.min(r1, r2);
+                    var maxR = Math.max(r1, r2);
+
+                    for (var r = minR; r <= maxR; r++) {
+                        var $row = $rows.eq(r);
+                        var rl = $row.data('l');
+                        var rtype = $row.data('type') || 'draw';
+
+                        for (var frame = minF; frame <= maxF; frame++) {
+                            // Verify keyframe exists
+                            var isValid = false;
+                            if (rl === '__camera') {
+                                isValid = VF.S.camera && VF.S.camera.frames[frame] !== undefined;
+                            } else {
+                                var lyr = VF.S.layers.find(function (x) { return x.id === rl; });
+                                if (lyr) {
+                                    if (rtype === 'transform') isValid = lyr.transforms && lyr.transforms[frame] !== undefined;
+                                    else isValid = lyr.frames[frame] !== undefined;
+                                }
+                            }
+
+                            if (isValid) {
+                                var existing = VF.tlSelection.findIndex(function (s) { return s.f === frame && s.l === rl && s.type === rtype; });
+                                if (existing === -1) VF.tlSelection.push({ f: frame, l: rl, type: rtype });
+                            }
+                        }
+                    }
+                    VF.uiTimeline();
+                }
+                return;
+            }
+
+            // Ctrl/Cmd+Click: Toggle Selection
+            if (e.ctrlKey || e.metaKey) {
+                if ($dot.length === 0) return;
+                var selIdx = VF.tlSelection.findIndex(function (s) { return s.f === f && s.l === l && s.type === type; });
+                if (selIdx > -1) {
+                    VF.tlSelection.splice(selIdx, 1);
+                    $dot.removeClass('tl-selected');
+                } else {
+                    VF.tlSelection.push({ f: f, l: l, type: type });
+                    $dot.addClass('tl-selected');
+                }
+                return;
+            }
+
+            // Normal Click: Single select or clear
+            if ($(e.target).hasClass('tl-dot')) {
+                VF.tlSelection = [{ f: f, l: l, type: type }];
+                $('.tl-dot').removeClass('tl-selected');
+                $dot.addClass('tl-selected');
+            } else {
+                VF.tlSelection = [];
+                $('.tl-dot').removeClass('tl-selected');
+            }
+
+            VF.goFrame(f);
         });
 
         $tlRuler.on('click', '.tl-rc', function (e) {
@@ -231,14 +311,14 @@
                         if (layer.frames[ctxF] !== undefined) {
                             delete layer.frames[ctxF];
                             delete layer.cache[ctxF];
-                            if (VF.pLayers[layer.id]) VF.pLayers[layer.id].removeChildren();
+                            if (ctxF === S.tl.frame) VF.loadFrame(layer.id, S.tl.frame);
                         }
                     }
                 }
                 else if (act === 'clear-exposure') {
                     layer.frames[ctxF] = [];
                     delete layer.cache[ctxF];
-                    if (VF.pLayers[layer.id]) VF.pLayers[layer.id].removeChildren();
+                    if (ctxF === S.tl.frame) VF.loadFrame(layer.id, S.tl.frame);
                 }
                 else if (act === 'paste-frame') {
                     if (ctxType === 'transform') {
@@ -279,8 +359,10 @@
             $dotCtx.hide();
         });
 
-        // ── Drag Core ──
+        // ── Drag Core (Keyframes & Marquee) ──
         var tlDrag = null;
+        var marqueeDrag = null;
+        var _wasMarqueeDragging = false;
 
         $tlRows.on('pointerdown', '.tl-dot.keyframe', function (e) {
             if (e.button !== 0) return;
@@ -289,21 +371,149 @@
 
             var $cell = $(this).closest('.tl-cell');
             var type = $(this).data('type') || 'draw';
+            var f = +$cell.data('f');
+            var l = $cell.data('l');
+            if (l !== '__camera') l = +l;
+
+            // If clicked node isn't in selection, select it exclusively
+            var inSel = VF.tlSelection.find(function (s) { return s.f === f && s.l === l && s.type === type; });
+            if (!inSel) {
+                VF.tlSelection = [{ f: f, l: l, type: type }];
+                $('.tl-dot').removeClass('tl-selected');
+                $(this).addClass('tl-selected');
+            }
 
             tlDrag = {
-                f: +$cell.data('f'),
-                l: +$cell.data('l'),
+                f: f,
+                l: l,
                 type: type,
                 el: $(this),
                 startX: e.clientX,
                 startY: e.clientY,
                 isDragging: false,
                 ghost: null,
-                targetCell: null
+                targetCell: null,
+                invalid: false,
+                selection: VF.tlSelection.slice()
             };
         });
 
+        $tlRows.on('pointerdown', function (e) {
+            if (e.button !== 0) return;
+            if ($(e.target).closest('.tl-dot').length) return; // Handled by tlDrag
+            if ($(e.target).closest('.tl-rc, #tl-ruler').length) return; // Handled by ruler
+
+            e.preventDefault();
+
+            var gridRect = $('#tl-grid')[0].getBoundingClientRect();
+            var scrollLeft = $('#tl-scroll').scrollLeft();
+            var scrollTop = $('#tl-scroll').scrollTop();
+
+            var baseSelection = [];
+            if (e.shiftKey || e.ctrlKey || e.metaKey) {
+                baseSelection = VF.tlSelection.slice();
+            } else {
+                VF.tlSelection = [];
+                $('.tl-dot').removeClass('tl-selected');
+            }
+
+            marqueeDrag = {
+                startXGlobal: e.clientX,
+                startYGlobal: e.clientY,
+                gridX: e.clientX - gridRect.left,
+                gridY: e.clientY - gridRect.top,
+                isDragging: false,
+                $box: $('#tl-marquee'),
+                baseSelection: baseSelection,
+                rowsInfo: []
+            };
+
+            // Pre-calculate row vertical bounds for extreme performance
+            $('.tl-row').each(function () {
+                var r = this.getBoundingClientRect();
+                marqueeDrag.rowsInfo.push({
+                    top: r.top,
+                    bottom: r.bottom,
+                    l: $(this).data('l'),
+                    type: $(this).data('type') || 'draw'
+                });
+            });
+        });
+
         $(window).on('pointermove', function (e) {
+
+            // ── MARQUEE DRAG ──
+            if (marqueeDrag) {
+                var mdx = e.clientX - marqueeDrag.startXGlobal;
+                var mdy = e.clientY - marqueeDrag.startYGlobal;
+
+                if (!marqueeDrag.isDragging) {
+                    if (Math.abs(mdx) > 4 || Math.abs(mdy) > 4) {
+                        marqueeDrag.isDragging = true;
+                        VF._isDraggingTimeline = true;
+                        if (marqueeDrag.$box.length === 0) {
+                            marqueeDrag.$box = $('<div id="tl-marquee" class="tl-marquee"></div>').appendTo('#tl-grid');
+                        }
+                        marqueeDrag.$box.show();
+                    }
+                }
+
+                if (marqueeDrag.isDragging) {
+                    var gridRect = $('#tl-grid')[0].getBoundingClientRect();
+                    var curGridX = e.clientX - gridRect.left;
+                    var curGridY = e.clientY - gridRect.top;
+
+                    var left = Math.min(marqueeDrag.gridX, curGridX);
+                    var top = Math.min(marqueeDrag.gridY, curGridY);
+                    var width = Math.abs(curGridX - marqueeDrag.gridX);
+                    var height = Math.abs(curGridY - marqueeDrag.gridY);
+
+                    marqueeDrag.$box.css({ left: left, top: top, width: width, height: height });
+
+                    var mLeft = Math.min(e.clientX, marqueeDrag.startXGlobal);
+                    var mRight = Math.max(e.clientX, marqueeDrag.startXGlobal);
+                    var mTop = Math.min(e.clientY, marqueeDrag.startYGlobal);
+                    var mBottom = Math.max(e.clientY, marqueeDrag.startYGlobal);
+
+                    var fStart = Math.max(0, Math.floor((mLeft - gridRect.left) / 18));
+                    var fEnd = Math.max(0, Math.floor((mRight - gridRect.left) / 18));
+
+                    var tempSelection = marqueeDrag.baseSelection.slice();
+
+                    for (var i = 0; i < marqueeDrag.rowsInfo.length; i++) {
+                        var r = marqueeDrag.rowsInfo[i];
+                        // If vertical bounds intersect
+                        if (r.bottom > mTop && r.top < mBottom) {
+                            for (var f = fStart; f <= fEnd; f++) {
+                                var isValid = false;
+                                if (r.l === '__camera') {
+                                    isValid = VF.S.camera && VF.S.camera.frames[f] !== undefined;
+                                } else {
+                                    var lyr = VF.S.layers.find(function (x) { return x.id === r.l; });
+                                    if (lyr) {
+                                        if (r.type === 'transform') isValid = lyr.transforms && lyr.transforms[f] !== undefined;
+                                        else isValid = lyr.frames[f] !== undefined;
+                                    }
+                                }
+
+                                if (isValid) {
+                                    var exists = tempSelection.find(function (s) { return s.f === f && s.l === r.l && s.type === r.type; });
+                                    if (!exists) tempSelection.push({ f: f, l: r.l, type: r.type });
+                                }
+                            }
+                        }
+                    }
+
+                    VF.tlSelection = tempSelection;
+                    $('.tl-dot').removeClass('tl-selected');
+                    VF.tlSelection.forEach(function (sel) {
+                        var qType = sel.type === 'transform' ? '[data-type="transform"]' : ':not([data-type="transform"])';
+                        $('.tl-row[data-l="' + sel.l + '"]' + qType + ' .tl-cell[data-f="' + sel.f + '"] .tl-dot').addClass('tl-selected');
+                    });
+                }
+            }
+
+            // ── NODE DRAG ──
             if (!tlDrag) return;
 
             if (!tlDrag.isDragging) {
@@ -320,13 +530,12 @@
                         transform: 'rotate(45deg) scale(1.3)'
                     }).appendTo('body');
 
-                    tlDrag.el.css('opacity', '0.2');
+                    $('.tl-selected').css('opacity', '0.2');
                 }
             }
 
             if (tlDrag.isDragging) {
                 tlDrag.ghost.css({ left: e.clientX - 4, top: e.clientY - 4 });
-
                 $('.tl-cell').css('background', '');
 
                 tlDrag.ghost.hide();
@@ -335,70 +544,171 @@
 
                 var $targetCell = $(target).closest('.tl-cell');
 
-                // Enforce tracking parity: Transforms can only drop on Transform rows
                 if ($targetCell.length) {
                     var tType = $targetCell.data('type') || 'draw';
-                    if (tType !== tlDrag.type) {
-                        $targetCell = $();
-                    }
+                    if (tType !== tlDrag.type) $targetCell = $();
                 }
 
                 if ($targetCell.length) {
                     var tf = +$targetCell.data('f');
-                    var tl = +$targetCell.data('l');
+                    var tl = $targetCell.data('l');
+                    if (tl !== '__camera') tl = +tl;
+
                     if (tf !== tlDrag.f || tl !== tlDrag.l) {
-                        $targetCell.css('background', 'var(--bg-active)');
-                        tlDrag.targetCell = { f: tf, l: tl };
+                        var df = tf - tlDrag.f;
+                        var dl = 0;
+
+                        var sortedLayers = [].concat(S.layers).sort(function (a, b) { return b.z - a.z; });
+                        if (tl !== '__camera' && tlDrag.l !== '__camera') {
+                            var srcIdx = sortedLayers.findIndex(function (x) { return x.id === tlDrag.l; });
+                            var tgtIdx = sortedLayers.findIndex(function (x) { return x.id === tl; });
+                            dl = tgtIdx - srcIdx;
+                        }
+
+                        var collision = false;
+                        var oob = false;
+
+                        // Check collision and bounds for ALL selected dragged nodes
+                        for (var i = 0; i < tlDrag.selection.length; i++) {
+                            var sel = tlDrag.selection[i];
+                            if (sel.l === '__camera' && tl !== '__camera') { collision = true; break; }
+                            if (sel.l !== '__camera' && tl === '__camera') { collision = true; break; }
+
+                            var newF = sel.f + df;
+                            if (newF < 0 || newF >= S.tl.max) { oob = true; break; }
+
+                            var newL = sel.l;
+                            if (sel.l !== '__camera') {
+                                var selIdx = sortedLayers.findIndex(function (x) { return x.id === sel.l; });
+                                var newIdx = selIdx + dl;
+                                if (newIdx < 0 || newIdx >= sortedLayers.length) { oob = true; break; }
+                                newL = sortedLayers[newIdx].id;
+                            }
+
+                            // Verify collision against non-selected existing keys
+                            var inSel = tlDrag.selection.find(function (s) { return s.f === newF && s.l === newL && s.type === sel.type; });
+                            if (!inSel) {
+                                if (newL === '__camera') {
+                                    if (S.camera && S.camera.frames && S.camera.frames[newF] !== undefined) { collision = true; break; }
+                                } else {
+                                    var layer = S.layers.find(function (x) { return x.id === newL; });
+                                    if (layer) {
+                                        if (sel.type === 'transform') {
+                                            if (layer.transforms && layer.transforms[newF] !== undefined) { collision = true; break; }
+                                        } else {
+                                            if (layer.frames && layer.frames[newF] !== undefined) { collision = true; break; }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (collision || oob) {
+                            $targetCell.css('background', 'rgba(218, 42, 0, 0.2)'); // Invalid red
+                            tlDrag.targetCell = null;
+                            tlDrag.invalid = true;
+                        } else {
+                            $targetCell.css('background', 'var(--bg-active)');
+                            tlDrag.targetCell = { f: tf, l: tl };
+                            tlDrag.dropDelta = { df: df, dl: dl };
+                            tlDrag.invalid = false;
+                        }
                     } else {
                         tlDrag.targetCell = null;
+                        tlDrag.invalid = false;
                     }
                 } else {
                     tlDrag.targetCell = null;
+                    tlDrag.invalid = false;
                 }
             }
         });
 
         $(window).on('pointerup', function (e) {
+
+            // ── CLEAR MARQUEE ──
+            if (marqueeDrag) {
+                if (marqueeDrag.isDragging) {
+                    marqueeDrag.$box.hide();
+                    VF._isDraggingTimeline = false;
+                    _wasMarqueeDragging = true;
+                    // Reset barrier shortly after to allow normal clicks again
+                    setTimeout(function () { _wasMarqueeDragging = false; }, 50);
+                }
+                marqueeDrag = null;
+            }
+
+            // ── CLEAR NODE DRAG ──
             if (!tlDrag) return;
 
             if (!tlDrag.isDragging) {
                 VF.goFrame(tlDrag.f);
             } else {
-                if (tlDrag.targetCell) {
-                    var tf = tlDrag.targetCell.f;
-                    var tl = tlDrag.targetCell.l;
+                if (tlDrag.targetCell && !tlDrag.invalid) {
+                    VF.saveHistory();
+                    var sortedLayers = [].concat(S.layers).sort(function (a, b) { return b.z - a.z; });
+                    var df = tlDrag.dropDelta.df;
+                    var dl = tlDrag.dropDelta.dl;
 
-                    var srcLayer = S.layers.find(function (x) { return x.id === tlDrag.l; });
-                    var tgtLayer = S.layers.find(function (x) { return x.id === tl; });
+                    var moves = [];
 
-                    if (srcLayer && srcLayer.locked) {
-                        VF.toast('Source layer is locked');
-                    } else if (tgtLayer && tgtLayer.locked) {
-                        VF.toast('Target layer is locked');
-                    } else if (srcLayer && tgtLayer) {
-                        VF.saveHistory();
-
-                        if (tlDrag.type === 'transform') {
-                            if (!srcLayer.transforms) srcLayer.transforms = {};
-                            if (!tgtLayer.transforms) tgtLayer.transforms = {};
-                            var tData = srcLayer.transforms[tlDrag.f];
-                            delete srcLayer.transforms[tlDrag.f];
-                            tgtLayer.transforms[tf] = tData;
-                        } else {
-                            var keyData = srcLayer.frames[tlDrag.f];
-                            delete srcLayer.frames[tlDrag.f];
-                            if (srcLayer.cache) delete srcLayer.cache[tlDrag.f];
-
-                            tgtLayer.frames[tf] = keyData;
-                            if (tgtLayer.cache) delete tgtLayer.cache[tf];
+                    // 1. Extract all original data to avoid mid-process overwrite destruction
+                    tlDrag.selection.forEach(function (sel) {
+                        var newF = sel.f + df;
+                        var newL = sel.l;
+                        if (sel.l !== '__camera') {
+                            var selIdx = sortedLayers.findIndex(function (x) { return x.id === sel.l; });
+                            newL = sortedLayers[selIdx + dl].id;
                         }
 
-                        S.tl.frame = tf;
-                    }
+                        var data = null;
+                        if (sel.l === '__camera') {
+                            data = S.camera.frames[sel.f];
+                            delete S.camera.frames[sel.f];
+                        } else {
+                            var lyr = S.layers.find(function (x) { return x.id === sel.l; });
+                            if (sel.type === 'transform') {
+                                data = lyr.transforms[sel.f];
+                                delete lyr.transforms[sel.f];
+                            } else {
+                                data = lyr.frames[sel.f];
+                                delete lyr.frames[sel.f];
+                                if (lyr.cache) delete lyr.cache[sel.f];
+                            }
+                        }
+                        moves.push({ f: newF, l: newL, type: sel.type, data: data });
+                    });
+
+                    // 2. Place all extracted data into new slots
+                    var newSelection = [];
+                    moves.forEach(function (m) {
+                        if (m.l === '__camera') {
+                            if (!S.camera) S.camera = { frames: {} };
+                            S.camera.frames[m.f] = m.data;
+                        } else {
+                            var lyr = S.layers.find(function (x) { return x.id === m.l; });
+                            if (m.type === 'transform') {
+                                if (!lyr.transforms) lyr.transforms = {};
+                                lyr.transforms[m.f] = m.data;
+                            } else {
+                                lyr.frames[m.f] = m.data;
+                                if (lyr.cache) delete lyr.cache[m.f];
+                            }
+                        }
+                        newSelection.push({ f: m.f, l: m.l, type: m.type });
+                    });
+
+                    VF.tlSelection = newSelection;
+                    S.tl.frame = tlDrag.targetCell.f;
+
+                    // Reload active frame for all layers since underlying data shifted
+                    S.layers.forEach(function (lyr) {
+                        VF.loadFrame(lyr.id, S.tl.frame);
+                    });
                 }
 
                 $('.tl-cell').css('background', '');
-                tlDrag.el.css('opacity', '1');
+                $('.tl-selected').css('opacity', '1');
                 if (tlDrag.ghost) tlDrag.ghost.remove();
 
                 VF._isDraggingTimeline = false;
@@ -408,6 +718,7 @@
 
             tlDrag = null;
         });
+
     });
 
 })();

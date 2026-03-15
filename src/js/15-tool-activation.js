@@ -40,6 +40,10 @@
 
         var cursorMap = { brush: 'crosshair', select: 'default', lasso: 'crosshair', eraser: 'crosshair', fill: 'crosshair', 'hide-edge': 'pointer', translate: 'move', rotate: 'grab', scale: 'nwse-resize', camera: 'default', pan: 'grab', zoom: 'zoom-in', 'rotate-view': 'alias' };
 
+        // FIX: Actually apply the cursor to the canvas element.
+        // Previously the cursorMap was defined but never used.
+        cvs.style.cursor = cursorMap[t] || 'default';
+
         if (VF.renderCameraOverlay) VF.renderCameraOverlay();
         if (VF.view) VF.view.update();
     };

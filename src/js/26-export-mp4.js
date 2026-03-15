@@ -145,6 +145,8 @@
                 sessionId: sessionId,
                 fps: S.tl.fps,
                 includeAudio: includeAudio,
+                audioData: includeAudio ? S.audioData : null,         // New
+                audioFilename: includeAudio ? S.audioFilename : null, // New
                 totalFrames: S.tl.max,
                 outputPath: outputPath
             });

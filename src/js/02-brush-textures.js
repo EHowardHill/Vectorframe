@@ -119,6 +119,12 @@
 
         var tempPath = new P.Path({ insert: false });
         points.forEach(function (p) { tempPath.add(new P.Point(p.point.x, p.point.y)); });
+
+        // Post-stroke smoothing for Legacy Mode
+        if (VF.wsPrefs && VF.wsPrefs.tabletMode === 'legacy') {
+            tempPath.smooth({ type: 'continuous', factor: 0.4 });
+        }
+
         tempPath.simplify(VF.smoothTol());
 
         var pathLen = tempPath.length;

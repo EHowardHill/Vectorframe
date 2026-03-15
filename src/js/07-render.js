@@ -63,6 +63,10 @@
                 m.rotate(xf.rotation);
                 m.scale(xf.scaleX, xf.scaleY);
                 m.translate(-cx, -cy);
+
+                // IMPORTANT FIX: Prevent Paper.js from baking this transform into the children's 
+                // native coordinates, which causes the timeline accumulation bug.
+                pl.applyMatrix = false;
                 pl.matrix = m;
             }
 
@@ -114,6 +118,8 @@
                             mo.rotate(xfo.rotation);
                             mo.scale(xfo.scaleX, xfo.scaleY);
                             mo.translate(-cxo, -cyo);
+
+                            skinGroup.applyMatrix = false;
                             skinGroup.matrix = mo;
                         }
 

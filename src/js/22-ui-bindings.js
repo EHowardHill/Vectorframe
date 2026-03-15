@@ -227,81 +227,140 @@
     // ◆ Duplicate Keyframe
     $('#btn-add-dup').on('click', function () {
         var l = VF.AL(); if (!l) return;
-
-        /* FIX: Check if layer is locked before creating keyframes */
         if (l.locked) { VF.toast('Layer is locked'); return; }
 
         VF.saveHistory();
-
-        // 1. Save current frame and get the artwork we want to duplicate
         VF.saveFrame();
+
         var res = VF.getResolvedFrame(l, S.tl.frame);
         var dataToCopy = res && res.data ? JSON.parse(JSON.stringify(res.data)) : [];
 
         VF.selSegments = [];
         VF.clearHandles();
 
-        // 2. Advance the frame (extend the project timeline if we are at the very end)
-        if (S.tl.frame >= S.tl.max - 1) {
-            S.tl.max++;
-            $('#pref-end').val(S.tl.max);
-            $('#in-endframe').val(S.tl.max);
+        // 1. If NO keyframe exists on the current frame, create it here and don't move.
+        if (l.frames[S.tl.frame] === undefined) {
+            l.frames[S.tl.frame] = dataToCopy;
+            if (l.cache) delete l.cache[S.tl.frame];
         }
-        S.tl.frame++;
+        // 2. If a keyframe ALREADY exists, move to the next frame.
+        else {
+            var targetF = S.tl.frame + 1;
 
-        // 3. Assign the duplicated data to the new frame
-        l.frames[S.tl.frame] = dataToCopy;
-        if (l.cache) delete l.cache[S.tl.frame];
+            // If the target frame is already occupied, ripple-push the contiguous block forward
+            if (l.frames[targetF] !== undefined) {
+                var emptyF = targetF;
+                // Find the next available empty slot
+                while (l.frames[emptyF] !== undefined) {
+                    emptyF++;
+                }
 
-        // 4. Rerender the canvas and timeline
+                // Extend the timeline if the ripple pushes past the end
+                if (emptyF >= S.tl.max) {
+                    S.tl.max = emptyF + 1;
+                    $('#pref-end, #in-endframe').val(S.tl.max);
+                }
+
+                // Shift the contiguous block to the right
+                for (var i = emptyF; i > targetF; i--) {
+                    l.frames[i] = l.frames[i - 1];
+                }
+
+                l.cache = {}; // Clear cache since frames were shifted
+            } else if (targetF >= S.tl.max) {
+                // If target is empty but past the timeline max, just extend the timeline
+                S.tl.max = targetF + 1;
+                $('#pref-end, #in-endframe').val(S.tl.max);
+            }
+
+            // Move the playhead and insert the duplicated data
+            S.tl.frame = targetF;
+            l.frames[S.tl.frame] = dataToCopy;
+            if (l.cache) delete l.cache[S.tl.frame];
+        }
+
         VF.render();
         VF.uiTimeline();
+
+        if (!S.tl.playing && window.VF.playFrameAudio) {
+            window.VF.playFrameAudio(S.tl.frame);
+        }
     });
 
     // ◇ Blank Keyframe
     $('#btn-add-blank').on('click', function () {
         var l = VF.AL(); if (!l) return;
-
-        /* FIX: Check if layer is locked before creating keyframes */
         if (l.locked) { VF.toast('Layer is locked'); return; }
 
         VF.saveHistory();
-
-        // 1. Save the current frame's drawing data before moving the playhead
         VF.saveFrame();
         VF.selSegments = [];
         VF.clearHandles();
 
-        // 2. Advance the frame (extend the project timeline if we are at the very end)
-        if (S.tl.frame >= S.tl.max - 1) {
-            S.tl.max++;
-            $('#pref-end').val(S.tl.max);
-            $('#in-endframe').val(S.tl.max);
+        // 1. If NO keyframe exists on the current frame, create it here and don't move.
+        if (l.frames[S.tl.frame] === undefined) {
+            l.frames[S.tl.frame] = [];
+            if (l.cache) delete l.cache[S.tl.frame];
+            if (VF.pLayers[l.id]) VF.pLayers[l.id].removeChildren();
         }
-        S.tl.frame++;
+        // 2. If a keyframe ALREADY exists, move to the next frame.
+        else {
+            var targetF = S.tl.frame + 1;
 
-        // 3. Create the empty keyframe at the new position
-        l.frames[S.tl.frame] = [];
-        if (l.cache) delete l.cache[S.tl.frame];
-        if (VF.pLayers[l.id]) VF.pLayers[l.id].removeChildren();
+            // If the target frame is already occupied, ripple-push the contiguous block forward
+            if (l.frames[targetF] !== undefined) {
+                var emptyF = targetF;
+                // Find the next available empty slot
+                while (l.frames[emptyF] !== undefined) {
+                    emptyF++;
+                }
 
-        // 4. Rerender the canvas and timeline
+                // Extend the timeline if the ripple pushes past the end
+                if (emptyF >= S.tl.max) {
+                    S.tl.max = emptyF + 1;
+                    $('#pref-end, #in-endframe').val(S.tl.max);
+                }
+
+                // Shift the contiguous block to the right
+                for (var i = emptyF; i > targetF; i--) {
+                    l.frames[i] = l.frames[i - 1];
+                }
+
+                l.cache = {}; // Clear cache since frames were shifted
+            } else if (targetF >= S.tl.max) {
+                // If target is empty but past the timeline max, just extend the timeline
+                S.tl.max = targetF + 1;
+                $('#pref-end, #in-endframe').val(S.tl.max);
+            }
+
+            // Move the playhead and insert the blank keyframe
+            S.tl.frame = targetF;
+            l.frames[S.tl.frame] = [];
+            if (l.cache) delete l.cache[S.tl.frame];
+            if (VF.pLayers[l.id]) VF.pLayers[l.id].removeChildren();
+        }
+
         VF.render();
         VF.uiTimeline();
+
+        if (!S.tl.playing && window.VF.playFrameAudio) {
+            window.VF.playFrameAudio(S.tl.frame);
+        }
     });
 
     // × Delete Keyframe
     $('#btn-del-node').on('click', function () {
         var l = VF.AL(); if (!l) return;
-
-        /* FIX: Check if layer is locked before deleting keyframes */
         if (l.locked) { VF.toast('Layer is locked'); return; }
 
         VF.saveHistory();
         if (l.frames[S.tl.frame] !== undefined) {
             delete l.frames[S.tl.frame];
             if (l.cache) delete l.cache[S.tl.frame];
-            if (VF.pLayers[l.id]) VF.pLayers[l.id].removeChildren();
+
+            // Reload resolved exposure to prevent saving a new blank frame
+            VF.loadFrame(l.id, S.tl.frame);
+
             VF.render(); VF.uiTimeline();
         }
     });

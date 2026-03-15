@@ -12,8 +12,13 @@
         var targetFrame = res ? res.keyFrame : S.tl.frame;
 
         if (l.type === 'vector') {
+            // VF.serPL now internally resets the layer matrix to Identity
+            // before exporting. This prevents the "matrix baking" loop 
+            // when saving state for the Undo stack.
             l.frames[targetFrame] = VF.serPL(VF.pLayers[l.id]);
         } else if (l.type === 'image') {
+            // Image rasters track their own local matrices, independent 
+            // of the parent layer's transform, so this avoids the baking loop naturally.
             var r = VF.pLayers[l.id].children.find(function (c) { return c.className === 'Raster'; });
             l.frames[targetFrame] = r ? { matrix: r.matrix.values } : [];
         }
@@ -61,7 +66,12 @@
         if (!S.layers.find(function (l) { return l.id === S.activeId; })) {
             S.activeId = S.layers[0] ? S.layers[0].id : 1;
         }
-        VF.uiLayers(); VF.uiTimeline(); VF.render();
+
+        // UI and Render calls handle applying the correct layer matrices 
+        // to the freshly restored un-baked coordinates.
+        VF.uiLayers();
+        VF.uiTimeline();
+        VF.render();
     };
 
     VF.execUndo = function () {

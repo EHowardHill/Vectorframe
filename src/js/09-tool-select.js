@@ -6,6 +6,42 @@
 
     VF.selectMode = 'object';
 
+    VF.getValidHit = function (pt, pl, tol) {
+        if (!pl) return null;
+
+        // Grab everything under the cursor
+        var hits = pl.hitTestAll(pt, { stroke: true, fill: true, segments: true, tolerance: tol });
+
+        for (var i = 0; i < hits.length; i++) {
+            var h = hits[i];
+            if (h.item._isH) continue; // Ignore UI handles and gizmos
+
+            var item = h.item;
+
+            // 1. Texture Strokes: Ignore the raster bounding box, check math distance to the guide path
+            if (item.className === 'Raster' && item.parent && item.parent.data && item.parent.data.isTextureStroke) {
+                var guide = item.parent.children.find(function (c) { return c.data && c.data.isGuide; });
+                if (guide) {
+                    var nearest = guide.getNearestPoint(pt);
+                    var dist = nearest ? nearest.getDistance(pt) : Infinity;
+                    // Only hit if the click is actually within the stroke width + tolerance
+                    if (dist <= (item.parent.data.brushSize / 2) + tol) return h;
+                }
+                continue; // Skip to next item if we just clicked the transparent corner
+            }
+
+            // 2. Standard Vectors: Reject fill hits if the object has no fill color
+            if (item.className === 'Path' || item.className === 'Shape' || item.className === 'CompoundPath') {
+                if (h.type === 'fill' && !item.fillColor) continue;
+                return h;
+            }
+
+            // 3. Imported Images or other generic items
+            return h;
+        }
+        return null;
+    };
+
     VF.exitVertexMode = function () {
         if (VF.selectMode === 'vertex') {
             VF.selectMode = 'object';
@@ -482,9 +518,11 @@
             VF.clearHandles();
         }
 
+        var tol = 8 / VF.view.zoom;
+
         if (isDoubleClick && VF.selSegments.length > 0) {
-            var hitDbl = pl.hitTest(e.point, { stroke: true, fill: true, segments: true, tolerance: 8 / VF.view.zoom });
-            if (hitDbl && hitDbl.item && !hitDbl.item._isH && isItemSelected(hitDbl.item)) {
+            var hitDbl = VF.getValidHit(e.point, pl, tol);
+            if (hitDbl && hitDbl.item && isItemSelected(hitDbl.item)) {
                 VF.selectMode = 'vertex';
                 VF.showHandles();
                 return;
@@ -501,8 +539,8 @@
             return;
         }
 
-        var hit2 = pl.hitTest(e.point, { stroke: true, fill: true, segments: true, tolerance: 8 / VF.view.zoom });
-        if (hit2 && hit2.item && !hit2.item._isH) {
+        var hit2 = VF.getValidHit(e.point, pl, tol);
+        if (hit2 && hit2.item) {
             var target = resolveTarget(hit2.item);
             if (isItemSelected(hit2.item)) {
                 gAction = 'translate-pending';

@@ -1,6 +1,6 @@
 {
   "productName": "Pompedin",
-  "version": "1.0.3",
+  "version": "1.0.6",
   "identifier": "com.cinemint.pompedin",
   "build": {
     "frontendDist": "../src"

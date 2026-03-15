@@ -12,24 +12,33 @@
     /* ── Real-time texture preview state ── */
     var texPreview = null;
     var fillPreview = null;
-    var TEX_PREVIEW_INTERVAL = 80;
     var lastTexPreviewTime = 0;
     var pressureGuidePath = null;
+
+    function getTexPreviewInterval() {
+        return (VF.wsPrefs && VF.wsPrefs.tabletMode === 'legacy') ? 140 : 80;
+    }
 
     /* ── Stable seed: decided once at mouseDown ── */
     var strokeSeed = 0;
 
     /* ═══════════════════════════════════════════════════
-       PEN INPUT OPTIMIZATION
-       ═══════════════════════════════════════════════════ */
-    var MIN_POINT_DIST = 1.5;
+           PEN INPUT OPTIMIZATION
+           ═══════════════════════════════════════════════════ */
     var lastAddedPoint = null;
+
+    // Dynamically adjust the distance threshold based on the tablet setting
+    function getMinPointDist() {
+        if (VF.wsPrefs && VF.wsPrefs.tabletMode === 'legacy') return 3.5; // Drop spammy Wintab points
+        return 1.5; // Smooth standard tracking for Windows Ink
+    }
 
     function isTooClose(pt) {
         if (!lastAddedPoint) return false;
         var dx = pt.x - lastAddedPoint.x;
         var dy = pt.y - lastAddedPoint.y;
-        return (dx * dx + dy * dy) < (MIN_POINT_DIST * MIN_POINT_DIST);
+        var limit = getMinPointDist();
+        return (dx * dx + dy * dy) < (limit * limit);
     }
 
     var tBrush = new (getP()).Tool(); tBrush.name = 'brush';
@@ -223,7 +232,7 @@
 
             if (usingTex) {
                 var now = Date.now();
-                if (now - lastTexPreviewTime >= TEX_PREVIEW_INTERVAL) {
+                if (now - lastTexPreviewTime >= getTexPreviewInterval()) {
                     lastTexPreviewTime = now;
                     renderTexPreview();
                 }
@@ -320,6 +329,11 @@
             curPath.opacity = 1;
 
             if (S.cfg.autoFill && !usingTex) curPath.closePath();
+
+            // Post-stroke smoothing for Legacy Mode to round out dropped points
+            if (VF.wsPrefs && VF.wsPrefs.tabletMode === 'legacy') {
+                curPath.smooth({ type: 'continuous', factor: 0.4 });
+            }
 
             curPath.simplify(VF.smoothTol());
 
